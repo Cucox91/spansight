@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpanSight — UI Mockup v0.1</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+/* ============ DESIGN TOKENS (see docs/DESIGN.md) ============ */
+:root{
+  --ink:#1a2733;          /* primary text */
+  --steel:#2f4a63;        /* brand */
+  --accent:#0e7490;       /* interactive */
+  --bg:#f4f6f8;           /* app background */
+  --panel:#ffffff;        /* surfaces */
+  --line:#dde4ea;         /* borders */
+  --muted:#5c6b7a;        /* secondary text */
+  --good:#2e7d32; --fair:#e6a817; --poor:#c62828;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(26,39,51,.12);
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);display:flex;flex-direction:column;font-size:14px}
+
+/* ============ HEADER ============ */
+header{display:flex;align-items:center;gap:20px;padding:0 16px;height:52px;background:var(--steel);color:#fff;flex-shrink:0}
+.logo{font-weight:700;font-size:17px;letter-spacing:.3px}
+.logo span{color:#9fd3e0}
+.mock-badge{font-size:11px;background:#e6a817;color:#1a2733;padding:2px 8px;border-radius:20px;font-weight:600}
+nav{display:flex;gap:4px;margin-left:8px}
+nav button{font:inherit;border:0;background:transparent;color:#c8d5e0;padding:8px 12px;border-radius:6px;cursor:pointer}
+nav button.active{background:rgba(255,255,255,.16);color:#fff;font-weight:600}
+nav button:disabled{color:#7d93a6;cursor:not-allowed}
+nav button:disabled small{display:block;font-size:9px;color:#9fd3e0}
+.spacer{flex:1}
+.search{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:7px 10px;width:230px;font:inherit}
+.search::placeholder{color:#b9c9d6}
+
+/* ============ LAYOUT ============ */
+main{display:flex;flex:1;min-height:0}
+aside.filters{width:250px;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow-y:auto;flex-shrink:0}
+.map-wrap{flex:1;position:relative;min-width:0;display:flex;flex-direction:column}
+#map{flex:1}
+.fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);text-align:center;padding:40px}
+
+/* ============ FILTER PANEL ============ */
+.filters h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:16px 0 8px}
+.filters h2:first-child{margin-top:0}
+.filters label{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer}
+.filters select,.filters input[type=number]{width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff}
+.chip{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip.g{background:var(--good)}.chip.f{background:var(--fair)}.chip.p{background:var(--poor)}
+.count{margin-left:auto;color:var(--muted);font-size:12px}
+.reset{margin-top:18px;width:100%;padding:8px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font:inherit;color:var(--accent);font-weight:600}
+
+/* ============ KPI STRIP ============ */
+.kpis{display:flex;gap:10px;padding:10px;background:transparent;position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none}
+.kpi{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:8px 14px;min-width:120px}
+.kpi .v{font-size:20px;font-weight:700}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi .v.poor{color:var(--poor)}
+
+/* ============ LEGEND ============ */
+.legend{position:absolute;bottom:26px;left:10px;z-index:5;background:var(--panel);border-radius:8px;box-shadow:var(--shadow);padding:8px 12px;font-size:12px}
+.legend div{display:flex;align-items:center;gap:7px;padding:2px 0}
+
+/* ============ DETAIL DRAWER ============ */
+.drawer{position:absolute;top:0;right:0;bottom:0;width:330px;background:var(--panel);box-shadow:-4px 0 14px rgba(26,39,51,.15);z-index:10;transform:translateX(105%);transition:transform .25s;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.drawer-head h3{font-size:15px;line-height:1.3}
+.drawer-head .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.close{margin-left:auto;border:0;background:transparent;font-size:20px;cursor:pointer;color:var(--muted)}
+.drawer-body{padding:14px 16px;overflow-y:auto}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;color:#fff;font-size:12px;font-weight:600}
+table.attrs{width:100%;border-collapse:collapse;margin-top:12px}
+table.attrs td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+table.attrs td:first-child{color:var(--muted);width:46%}
+.phase-note{margin-top:14px;background:#eef6f8;border:1px dashed var(--accent);border-radius:8px;padding:10px;font-size:12px;color:var(--steel)}
+.spark{margin-top:6px}
+
+/* ============ FOOTER ============ */
+footer{padding:7px 14px;background:var(--panel);border-top:1px solid var(--line);color:var(--muted);font-size:11px;display:flex;gap:14px;flex-shrink:0;flex-wrap:wrap}
+footer .att{margin-left:auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Span<span>Sight</span></div>
+  <span class="mock-badge">MOCKUP v0.1 · SAMPLE DATA</span>
+  <nav>
+    <button class="active">Explorer</button>
+    <button disabled title="Phase 1">Analytics<small>Phase 1</small></button>
+    <button disabled title="Phase 2">Live Ops<small>Phase 2</small></button>
+    <button disabled title="Phase 0 pipeline output">Data QA<small>Phase 0</small></button>
+  </nav>
+  <div class="spacer"></div>
+  <input class="search" placeholder="Search bridge, county, route… (P0)" disabled>
+</header>
+
+<main>
+  <aside class="filters">
+    <h2>Condition</h2>
+    <label><span class="chip g"></span> Good <input type="checkbox" data-cond="Good" checked class="count-box"><span class="count" id="cG"></span></label>
+    <label><span class="chip f"></span> Fair <input type="checkbox" data-cond="Fair" checked><span class="count" id="cF"></span></label>
+    <label><span class="chip p"></span> Poor <input type="checkbox" data-cond="Poor" checked><span class="count" id="cP"></span></label>
+
+    <h2>State</h2>
+    <select id="fState"><option value="">All states</option></select>
+
+    <h2>Structure type</h2>
+    <label><input type="checkbox" data-type="Girder/Stringer" checked> Girder / Stringer</label>
+    <label><input type="checkbox" data-type="Truss/Arch" checked> Truss / Arch</label>
+    <label><input type="checkbox" data-type="Culvert" checked> Culvert</label>
+    <label><input type="checkbox" data-type="Other" checked> Other</label>
+
+    <h2>Built in or before</h2>
+    <input type="number" id="fYear" value="2025" min="1880" max="2025" step="5">
+
+    <h2>Min. daily traffic (AADT)</h2>
+    <select id="fAadt">
+      <option value="0">Any</option>
+      <option value="10000">&ge; 10,000</option>
+      <option value="50000">&ge; 50,000</option>
+      <option value="100000">&ge; 100,000</option>
+    </select>
+
+    <button class="reset" id="reset">Reset filters</button>
+  </aside>
+
+  <div class="map-wrap">
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kTotal">–</div><div class="l">Bridges shown</div></div>
+      <div class="kpi"><div class="v poor" id="kPoor">–</div><div class="l">% Poor</div></div>
+      <div class="kpi"><div class="v" id="kAge">–</div><div class="l">Median age</div></div>
+      <div class="kpi"><div class="v" id="kAadt">–</div><div class="l">Avg AADT</div></div>
+    </div>
+    <div id="map"></div>
+    <div class="fallback" id="fallback">Basemap failed to load (offline?).<br>The layout, filters, and drawer still demonstrate the design.</div>
+    <div class="legend">
+      <div><span class="chip g"></span> Good (lowest rating &ge; 7)</div>
+      <div><span class="chip f"></span> Fair (5–6)</div>
+      <div><span class="chip p"></span> Poor (&le; 4)</div>
+    </div>
+
+    <div class="drawer" id="drawer">
+      <div class="drawer-head">
+        <div>
+          <h3 id="dName">—</h3>
+          <div class="sub" id="dSub">—</div>
+        </div>
+        <button class="close" id="dClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="drawer-body">
+        <span class="badge" id="dBadge">—</span>
+        <table class="attrs" id="dAttrs"></table>
+        <div class="phase-note">
+          <strong>Condition history</strong> — illustrative sparkline; real per-bridge trend chart ships in Phase 1 (FR-1.2).
+          <svg class="spark" width="280" height="46" viewBox="0 0 280 46">
+            <polyline id="dSpark" fill="none" stroke="#0e7490" stroke-width="2" points=""/>
+            <line x1="0" y1="45" x2="280" y2="45" stroke="#dde4ea"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span><strong>Independent personal project.</strong> Sample/mock data shown; production uses public FHWA NBI. Not engineering advice. No affiliation with any DOT.</span>
+  <span class="att">Basemap © <a href="https://openfreemap.org">OpenFreeMap</a> · OpenMapTiles · OpenStreetMap contributors</span>
+</footer>
+
+<script>
+/* ---- SAMPLE DATA (invented, clearly-not-real values) ----
+   [id, crossing, state, county, lat, lng, yearBuilt, typeGroup, typeName, deck, super, sub, aadt] */
+const RAW=[
+["481234H","I-45 over Buffalo Bayou","TX","Harris",29.771,-95.372,1968,"Girder/Stringer","Steel Stringer",6,5,5,142000],
+["480877D","US-75 over Trinity River","TX","Dallas",32.752,-96.807,1979,"Girder/Stringer","Prestressed Concrete Girder",7,7,6,98000],
+["482210A","FM-969 over Walnut Creek","TX","Travis",30.291,-97.699,1955,"Culvert","Concrete Culvert",5,4,4,8200],
+["061102F","I-110 over Alameda St","CA","Los Angeles",34.041,-118.229,1962,"Girder/Stringer","Steel Stringer",5,4,5,188000],
+["060455B","SR-1 over Estero Creek","CA","San Francisco",37.762,-122.436,1948,"Truss/Arch","Concrete Arch",6,6,5,31000],
+["060998C","I-5 over American River","CA","Sacramento",38.601,-121.506,1971,"Girder/Stringer","Steel Girder",7,6,6,124000],
+["360772E","Atlantic Ave over LIRR","NY","Kings",40.678,-73.944,1931,"Girder/Stringer","Steel Stringer",4,4,3,27000],
+["361540G","SR-5 over Buffalo Creek","NY","Erie",42.873,-78.851,1959,"Truss/Arch","Steel Truss - Thru",5,5,4,18500],
+["360221K","US-9 over Normans Kill","NY","Albany",42.629,-73.782,1966,"Girder/Stringer","Steel Girder",6,6,6,22000],
+["124077C","NW 12th Ave over Miami River","FL","Miami-Dade",25.783,-80.212,1972,"Girder/Stringer","Prestressed Concrete Girder",6,6,5,34000],
+["120655H","US-92 over Hillsborough River","FL","Hillsborough",27.964,-82.443,1985,"Girder/Stringer","Prestressed Concrete Girder",7,7,7,41000],
+["121980B","SR-134 over Ortega River","FL","Duval",30.286,-81.721,1961,"Other","Bascule (Movable)",5,5,4,19800],
+["420111J","Liberty Bridge over Monongahela","PA","Allegheny",40.428,-79.996,1928,"Truss/Arch","Steel Truss - Deck",5,4,4,26500],
+["421765D","US-13 over Neshaminy Creek","PA","Bucks",40.077,-74.912,1954,"Girder/Stringer","Steel Stringer",4,5,4,15200],
+["390442F","US-50 over Mill Creek","OH","Hamilton",39.106,-84.548,1958,"Girder/Stringer","Steel Stringer",5,5,5,44000],
+["391230A","SR-2 over Cuyahoga River","OH","Cuyahoga",41.494,-81.703,1939,"Truss/Arch","Steel Truss - Thru",4,3,4,39000],
+["530654C","SR-99 over Ship Canal","WA","King",47.647,-122.347,1932,"Truss/Arch","Concrete Arch",6,5,5,64000],
+["530988E","US-2 over Spokane River","WA","Spokane",47.662,-117.402,1949,"Truss/Arch","Steel Arch",6,6,6,21000],
+["080332D","I-25 over Cherry Creek","CO","Denver",39.716,-104.987,1974,"Girder/Stringer","Concrete Box Girder",7,7,6,171000],
+["130229H","I-20 over Chattahoochee","GA","Fulton",33.752,-84.463,1963,"Girder/Stringer","Steel Girder",6,5,5,132000],
+["131654B","US-17 over Ogeechee River","GA","Chatham",32.021,-81.221,1957,"Girder/Stringer","Prestressed Concrete Girder",5,5,4,12800],
+["170445K","Cermak Rd over Chicago River","IL","Cook",41.853,-87.635,1906,"Other","Bascule (Movable)",4,4,3,14700],
+["220876A","US-90 over Bayou St. John","LA","Orleans",29.977,-90.086,1953,"Girder/Stringer","Concrete Slab",5,4,4,16900],
+["290312F","I-70 over Missouri River","MO","St. Louis",38.652,-90.184,1967,"Girder/Stringer","Steel Girder",5,5,5,88000],
+["290877C","US-169 over Kansas City Terminal Ry","MO","Jackson",39.112,-94.591,1945,"Girder/Stringer","Steel Stringer",4,4,4,23500],
+["470221E","SR-14 over Nonconnah Creek","TN","Shelby",35.088,-90.021,1969,"Culvert","Concrete Culvert",6,6,6,9800],
+["250443B","US-1 over Mystic River","MA","Suffolk",42.387,-71.077,1935,"Truss/Arch","Steel Truss - Thru",4,4,4,52000],
+["410556D","NE Broadway over Sullivan Gulch","OR","Multnomah",45.535,-122.661,1926,"Girder/Stringer","Concrete Girder",5,5,4,28800],
+["040112G","SR-143 over Salt River","AZ","Maricopa",33.436,-111.967,1990,"Girder/Stringer","Prestressed Concrete Girder",8,7,7,76000],
+["270331H","10th Ave over Mississippi","MN","Hennepin",44.978,-93.245,1929,"Truss/Arch","Concrete Arch",5,5,5,11200],
+["190228A","US-6 over Raccoon River","IA","Polk",41.577,-93.671,1951,"Girder/Stringer","Steel Stringer",5,4,5,13400],
+["540116C","US-60 over Elk River","WV","Kanawha",38.372,-81.598,1942,"Truss/Arch","Steel Truss - Thru",4,3,3,9600],
+["210443F","US-31W over Salt River","KY","Bullitt",38.089,-85.703,1962,"Girder/Stringer","Steel Girder",6,5,5,25600],
+["010332B","US-31 over Village Creek","AL","Jefferson",33.548,-86.792,1948,"Culvert","Concrete Culvert",5,5,4,10400],
+["370556E","SR-27 over Sugar Creek","NC","Mecklenburg",35.198,-80.802,1976,"Girder/Stringer","Prestressed Concrete Girder",7,6,6,30800],
+["510221D","US-1 over James River","VA","Richmond city",37.525,-77.442,1957,"Girder/Stringer","Steel Girder",5,5,4,36700],
+["260445A","Fort St over River Rouge","MI","Wayne",42.291,-83.128,1938,"Truss/Arch","Steel Truss - Deck",4,4,4,17300],
+["550332C","SR-32 over Menomonee River","WI","Milwaukee",43.031,-87.941,1964,"Girder/Stringer","Concrete Girder",6,6,5,20200],
+["080771B","US-34 over Big Thompson","CO","Larimer",40.415,-105.101,1983,"Girder/Stringer","Prestressed Concrete Girder",7,7,7,15600],
+["484412E","Ranch Rd 2222 over Bull Creek","TX","Travis",30.354,-97.789,1996,"Girder/Stringer","Concrete Box Girder",8,8,7,29400],
+["061771A","I-80 over Truckee River","CA","Nevada",39.328,-120.183,1964,"Girder/Stringer","Steel Girder",6,5,6,47800],
+["360998H","SR-28 over Sacandaga River","NY","Hamilton",43.471,-74.267,1936,"Truss/Arch","Steel Truss - Thru",4,4,5,2100]
+];
+
+const bridges = RAW.map(r=>({id:r[0],name:r[1],state:r[2],county:r[3],lat:r[4],lng:r[5],year:r[6],group:r[7],type:r[8],deck:r[9],sup:r[10],sub:r[11],aadt:r[12],
+  min:Math.min(r[9],r[10],r[11]),
+  cond:Math.min(r[9],r[10],r[11])>=7?"Good":Math.min(r[9],r[10],r[11])>=5?"Fair":"Poor"}));
+
+const COLORS={Good:"#2e7d32",Fair:"#e6a817",Poor:"#c62828"};
+
+/* ---- state selector options ---- */
+const sSel=document.getElementById("fState");
+[...new Set(bridges.map(b=>b.state))].sort().forEach(s=>{const o=document.createElement("option");o.value=o.textContent=s;sSel.appendChild(o);});
+
+/* ---- filtering ---- */
+function activeFilters(){
+  const conds=[...document.querySelectorAll("[data-cond]")].filter(c=>c.checked).map(c=>c.dataset.cond);
+  const types=[...document.querySelectorAll("[data-type]")].filter(c=>c.checked).map(c=>c.dataset.type);
+  return {conds,types,state:sSel.value,year:+document.getElementById("fYear").value||2025,aadt:+document.getElementById("fAadt").value};
+}
+function apply(){
+  const f=activeFilters();
+  const kept=bridges.filter(b=>f.conds.includes(b.cond)&&f.types.includes(b.group)&&(!f.state||b.state===f.state)&&b.year<=f.year&&b.aadt>=f.aadt);
+  renderKpis(kept); renderCounts();
+  if(map&&map.getSource("bridges")) map.getSource("bridges").setData(fc(kept));
+  return kept;
+}
+function fc(list){return {type:"FeatureCollection",features:list.map(b=>({type:"Feature",geometry:{type:"Point",coordinates:[b.lng,b.lat]},properties:{...b}}))};}
+function renderKpis(list){
+  document.getElementById("kTotal").textContent=list.length;
+  document.getElementById("kPoor").textContent=list.length?Math.round(100*list.filter(b=>b.cond==="Poor").length/list.length)+"%":"–";
+  const ages=list.map(b=>2026-b.year).sort((a,b)=>a-b);
+  document.getElementById("kAge").textContent=ages.length?ages[Math.floor(ages.length/2)]+" yrs":"–";
+  document.getElementById("kAadt").textContent=list.length?Math.round(list.reduce((s,b)=>s+b.aadt,0)/list.length/1000)+"k":"–";
+}
+function renderCounts(){
+  const by=c=>bridges.filter(b=>b.cond===c).length;
+  cG.textContent=by("Good"); cF.textContent=by("Fair"); cP.textContent=by("Poor");
+}
+document.querySelectorAll("aside input,aside select").forEach(el=>el.addEventListener("change",apply));
+document.getElementById("reset").onclick=()=>{document.querySelectorAll("[data-cond],[data-type]").forEach(c=>c.checked=true);sSel.value="";fYear.value=2025;fAadt.value="0";apply();};
+
+/* ---- drawer ---- */
+const drawer=document.getElementById("drawer");
+function openDrawer(p){
+  document.getElementById("dName").textContent=p.name;
+  document.getElementById("dSub").textContent=`NBI ${p.id} · ${p.county} County, ${p.state}`;
+  const badge=document.getElementById("dBadge");
+  badge.textContent=`${p.cond} — lowest rating ${p.min}`; badge.style.background=COLORS[p.cond];
+  const rows=[["Structure type",p.type],["Year built",p.year+` (${2026-p.year} yrs)`],["Deck rating",p.deck+" / 9"],["Superstructure",p.sup+" / 9"],["Substructure",p.sub+" / 9"],["AADT",p.aadt.toLocaleString()+" vehicles/day"],["Source format","Legacy Coding Guide (sample)"]];
+  document.getElementById("dAttrs").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td><strong>${r[1]}</strong></td></tr>`).join("");
+  /* fake but deterministic sparkline: drift from min rating */
+  let v=Math.min(9,p.min+3), pts=[];
+  for(let i=0;i<12;i++){pts.push(`${10+i*24},${45-v*4.4}`); v=Math.max(p.min, v-((p.id.charCodeAt(i%7)%3)?0.4:0));}
+  document.getElementById("dSpark").setAttribute("points",pts.join(" "));
+  drawer.classList.add("open");
+}
+document.getElementById("dClose").onclick=()=>drawer.classList.remove("open");
+document.addEventListener("keydown",e=>{if(e.key==="Escape")drawer.classList.remove("open");});
+
+/* ---- map ---- */
+let map;
+try{
+  map=new maplibregl.Map({container:"map",style:"https://tiles.openfreemap.org/styles/liberty",center:[-95.5,38.6],zoom:3.8,attributionControl:false});
+  map.addControl(new maplibregl.NavigationControl(),"bottom-right");
+  map.on("load",()=>{
+    map.addSource("bridges",{type:"geojson",data:fc(bridges)});
+    map.addLayer({id:"bridge-halo",type:"circle",source:"bridges",paint:{
+      "circle-radius":["interpolate",["linear"],["zoom"],3,5,10,12],
+      "circle-color":["match",["get","cond"],"Good",COLORS.Good,"Fair",COLORS.Fair,COLORS.Poor],
+      "circle-opacity":.85,"circle-stroke-width":1.5,"circle-stroke-color":"#ffffff"}});
+    map.on("click","bridge-halo",e=>openDrawer(e.features[0].properties));
+    map.on("mouseenter","bridge-halo",()=>map.getCanvas().style.cursor="pointer");
+    map.on("mouseleave","bridge-halo",()=>map.getCanvas().style.cursor="");
+    apply();
+  });
+  map.on("error",()=>{if(!map.isStyleLoaded())document.getElementById("fallback").style.display="flex";});
+}catch(e){document.getElementById("fallback").style.display="flex";}
+apply();
+</script>
+</body>
+</html>
