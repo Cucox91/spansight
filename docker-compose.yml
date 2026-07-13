@@ -1,0 +1,69 @@
+name: spansight
+
+services:
+  postgres:
+    # Multi-arch (arm64 dev Mac) build of postgis/postgis, maintained by the docker-postgis
+    # project; the official image publishes amd64 only as of 2026-07.
+    image: imresamu/postgis:16-3.5
+    environment:
+      POSTGRES_USER: spansight
+      POSTGRES_PASSWORD: spansight # local dev only — cloud uses managed identity (ADR-006-B)
+      POSTGRES_DB: spansight
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spansight -d spansight"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.156.0
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./ops/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+
+  # Optional observability UI (IMPLEMENTATION-PLAN §5.1): docker compose --profile observability up
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    profiles: [observability]
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.4.5
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true" # local dev only
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000" # host 3000 is a common dev-server port; keep Grafana clear of it
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
