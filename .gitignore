@@ -1,1 +1,31 @@
-/.DS_Store
+# macOS
+.DS_Store
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+artifacts/
+TestResults/
+
+# IDE
+.idea/
+*.swp
+
+# Node / web
+node_modules/
+web/dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Local env & secrets (never commit)
+.env
+.env.local
+*.pfx
+
+# Data artifacts — no bulk NBI data in git (CLAUDE.md hard rule 4)
+*.pmtiles
+*.parquet
+data/
+!src/tests/**/fixtures/

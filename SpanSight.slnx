@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SpanSight.Api/SpanSight.Api.csproj" />
+    <Project Path="src/SpanSight.Core/SpanSight.Core.csproj" />
+    <Project Path="src/SpanSight.Ingestion/SpanSight.Ingestion.csproj" />
+  </Folder>
+  <Folder Name="/src/tests/">
+    <Project Path="src/tests/SpanSight.Api.Tests/SpanSight.Api.Tests.csproj" />
+    <Project Path="src/tests/SpanSight.Core.Tests/SpanSight.Core.Tests.csproj" />
+    <Project Path="src/tests/SpanSight.Ingestion.Tests/SpanSight.Ingestion.Tests.csproj" />
+  </Folder>
+</Solution>
