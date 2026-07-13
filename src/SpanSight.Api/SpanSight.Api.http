@@ -1,0 +1,10 @@
+@SpanSight.Api_HostAddress = http://localhost:5194
+
+GET {{SpanSight.Api_HostAddress}}/healthz
+
+###
+
+GET {{SpanSight.Api_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###

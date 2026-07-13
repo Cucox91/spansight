@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain layer: entities, condition logic, SNBI crosswalk (IMPLEMENTATION-PLAN §2).
+       Common build settings come from Directory.Build.props. -->
+
+</Project>
