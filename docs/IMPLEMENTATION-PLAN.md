@@ -1,8 +1,10 @@
 # SpanSight — Implementation Plan
 
-v1.0 · 2026-07-12 · Name locked: **SpanSight** (repo `spansight`, public from day 1 — OQ-2 closed). Companion to [REQUIREMENTS.md](./REQUIREMENTS.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [AI-USAGE.md](./AI-USAGE.md)
+v1.1 · 2026-07-17 (v1.0: 2026-07-12) · Name locked: **SpanSight** (repo `spansight`, public from day 1 — OQ-2 closed). Companion to [REQUIREMENTS.md](./REQUIREMENTS.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [AI-USAGE.md](./AI-USAGE.md)
 
 Task tags per the AI policy: **[ME]** hand-written/decided by Raziel · **[AI]** delegated, line-by-line reviewed · **[ME+AI]** paired.
+
+> **Amendment 2026-07-17 (AI-USAGE v1.1):** [ME] implementation tags in §5 are reinterpreted — AI drafts all components including the novel cores; Raziel's [ME] obligation shifts to line-by-line review, the merge bar, and one hand-rebuilt core per phase (Phase 0 pick: NBI parser or DMS converter). [ME] *decision* tags (schema sign-off, budget, gate reviews, metric definitions) are unchanged. Weeks 2–4 implementation is being executed as a single AI pass delivered in reviewable batches; the weekly structure below remains the review/merge order.
 
 ## 1. Toolchain & one-time setup (Mac)
 
