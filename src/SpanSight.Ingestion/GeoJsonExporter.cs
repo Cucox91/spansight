@@ -46,6 +46,39 @@ public sealed class GeoJsonExporter(SpanSightDbContext db, ILogger<GeoJsonExport
         }
 
         logger.LogInformation("Exported {Count:N0} features to {Path}.", count, outputPath);
+
+        await WriteMetaAsync(outputPath, count, cancellationToken);
         return count;
+    }
+
+    /// <summary>
+    /// Sidecar for the tile manifest (FR-0.5 AC-3): ties the export — and therefore the PMTiles
+    /// artifact built from it — to the ingestion run that produced the data.
+    /// </summary>
+    private async Task WriteMetaAsync(string outputPath, int featureCount, CancellationToken cancellationToken)
+    {
+        var run = await db.IngestionRuns.AsNoTracking()
+            .Where(r => r.Status == IngestionRunStatus.Completed)
+            .OrderByDescending(r => r.CompletedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var meta = new
+        {
+            generatedUtc = DateTimeOffset.UtcNow,
+            featureCount,
+            ingestionRun = run is null ? null : new
+            {
+                id = run.Id,
+                snapshotYear = run.SnapshotYear,
+                sourceFile = run.SourceFile,
+                sourceSha256 = run.SourceSha256,
+                completedUtc = run.CompletedUtc,
+                rowsLoaded = run.RowsLoaded,
+            },
+        };
+
+        var metaPath = outputPath + ".meta.json";
+        await File.WriteAllTextAsync(metaPath, JsonSerializer.Serialize(meta, new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+        logger.LogInformation("Export meta written to {Path}.", metaPath);
     }
 }
