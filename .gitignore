@@ -25,7 +25,8 @@ npm-debug.log*
 *.pfx
 
 # Data artifacts — no bulk NBI data in git (CLAUDE.md hard rule 4)
+# Root-anchored: a bare data/ also swallows src/**/Data/ (EF model) on case-insensitive macOS
 *.pmtiles
 *.parquet
-data/
+/data/
 !src/tests/**/fixtures/
