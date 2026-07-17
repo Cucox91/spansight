@@ -1,6 +1,6 @@
 # SpanSight — Architecture
 
-**Design Document** · v0.2 · Author: Raziel Arias · Date: 2026-07-12 (ADR-006-B adopted same day) · Companion to [REQUIREMENTS.md](./REQUIREMENTS.md)
+**Design Document** · v0.3 · Author: Raziel Arias · Date: 2026-07-17 (ADR-008 added; v0.2 2026-07-12, ADR-006-B) · Companion to [REQUIREMENTS.md](./REQUIREMENTS.md)
 
 ---
 
@@ -15,6 +15,7 @@
 | 30-year history | Parquet + DuckDB, offline; only serving data in hosted Postgres | ADR-005 |
 | Cloud hosting | Azure end-to-end: Container Apps + PostgreSQL Flexible + Static Web Apps + Blob + App Insights · Bicep IaC · OIDC deploys | ADR-006-B |
 | GTFS-RT poller language | Node/TypeScript (isolated secondary-stack showcase) | ADR-007 |
+| AI product features (Phase 0.5) | Provider-abstracted LLM assist: NL→filter translation, decoded-record narration, coding-guide RAG — feature-flagged, guardrailed | ADR-008 |
 
 ## 2. System Context (C4 L1)
 
@@ -185,6 +186,17 @@ Single `docker compose up`: Postgres+PostGIS, Redis, API, poller, OTel collector
 **Decision.** The one non-.NET service is the GTFS-RT poller.
 **Rationale.** Showcases the declared secondary stack in a small, isolated, low-risk component (protobuf decode → Redis write); demonstrates polyglot judgment rather than monoculture.
 **Consequences.** Two runtimes in CI; flip-to-.NET path is one worker class if consolidation is ever preferred.
+
+### ADR-008 — AI product features: guardrailed LLM assist (ADOPTED 2026-07-17)
+**Context.** Owner added AI features to scope (SRS v1.1, Phase 0.5: FR-AI.1 natural-language query → filters, FR-AI.2 plain-English record narration, FR-AI.3 RAG over the public FHWA coding guide). Constraints: GR-6 (nothing that reads as engineering judgment), NFR-2 (budget ≤$50/mo all-in), NFR-4 (no secrets in repo), and demo reliability.
+**Decision.**
+1. **Abstraction first.** A small `ISpanSightAssistant` port in `SpanSight.Core.Ai` with provider adapters in the API host; first adapter targets the Anthropic API (personal account), Haiku-class model by default. Provider/model/pins chosen at implementation time and recorded here.
+2. **Guardrails as architecture, not prompts only.** FR-AI.1 output is **constrained to the existing validated `FilterSpec`** (JSON-schema structured output → same validation path as hand-typed filters; the model can only say what a filter form could say). FR-AI.2 narrates only published fields already shown in the drawer, template-framed, with the GR-6 disclaimer attached to every AI-authored string. No user text ever reaches SQL; no model-initiated tool calls.
+3. **Prompt-injection posture.** User input is data, never instructions: single-turn, schema-bound calls; no conversation memory; no access to anything but the request payload.
+4. **Cost control.** Feature-flagged off by default (`Ai:Enabled=false`); per-request token caps; response cache (Redis) keyed on normalized input; daily request budget guard that trips the feature to "temporarily unavailable"; target ≤$5/mo inside NFR-2, reviewed at gates. API key via user-secrets locally / Container Apps secrets in cloud.
+5. **RAG (FR-AI.3) deferred one step.** Corpus is the public FHWA Coding Guide/SNBI definitions; retrieval lands as pgvector in the same Postgres (no new datastore). Embedding provider decided at build time (local ONNX model vs hosted API) with its own mini-trade-study appended here.
+**Rationale.** Demonstrates the AI-integration skill hiring teams now screen for, with the engineering story (schema-constrained outputs, injection posture, cost governors, provider abstraction) — not a chat box bolted on. Same-Postgres pgvector keeps ADR-001/ADR-006-B intact.
+**Consequences.** LLM spend joins the gate-time budget check; `Ai:Enabled` stays false until FR-AI acceptance criteria are elaborated and met (SDLC §3); the disclaimer footer language extends to AI-authored text (GR-6).
 
 ## 7. Cross-Cutting Concerns
 

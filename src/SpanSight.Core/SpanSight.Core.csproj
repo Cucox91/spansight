@@ -3,4 +3,10 @@
   <!-- Domain layer: entities, condition logic, SNBI crosswalk (IMPLEMENTATION-PLAN §2).
        Common build settings come from Directory.Build.props. -->
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" />
+  </ItemGroup>
+
 </Project>
