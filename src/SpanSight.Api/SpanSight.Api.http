@@ -1,10 +1,64 @@
 @SpanSight.Api_HostAddress = http://localhost:5194
 
+### Liveness (no dependencies) and readiness (DB reachable)
+
 GET {{SpanSight.Api_HostAddress}}/healthz
 
 ###
 
+GET {{SpanSight.Api_HostAddress}}/readyz
+
+### OpenAPI document — interactive reference at {{SpanSight.Api_HostAddress}}/scalar/v1
+
 GET {{SpanSight.Api_HostAddress}}/openapi/v1.json
 Accept: application/json
 
-###
+### Code → label lookups (conditions, materials, designs, states)
+
+GET {{SpanSight.Api_HostAddress}}/api/lookups
+
+### National stats for the KPI strip
+
+GET {{SpanSight.Api_HostAddress}}/api/stats/summary
+
+### Bridges — first page, no filters
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges?page=1&pageSize=10
+
+### Bridges — combined filters (FR-0.3 AC-1): poor-condition steel in Florida, built before 1970
+### (material/design take NBI item-43 codes — see /api/lookups; 3 = Steel, 4 = Steel continuous)
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges?state=FL&condition=Poor&material=3&material=4&yearBuiltMax=1970
+
+### Bridges — bounding box (minLon,minLat,maxLon,maxLat: greater Miami) + traffic floor
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges?bbox=-80.9,25.1,-80.0,26.0&minAdt=10000
+
+### Map layer GeoJSON (the SPA fallback when no PMTiles URL is configured)
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges/geojson?state=FL
+
+### Bridge detail — raw NBI codes decoded (fixture bridge CR-905, Miami-Dade)
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges/FL/1238705001
+
+### Unknown structure → RFC 9457 404 ProblemDetails
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges/FL/DOES-NOT-EXIST
+
+### Invalid parameters → 400 ValidationProblem with field-level detail
+
+GET {{SpanSight.Api_HostAddress}}/api/bridges?bbox=not-a-bbox&pageSize=99999
+
+### Data-QA summary — reconciles exactly with the latest ingestion run (FR-0.2 AC-3)
+
+GET {{SpanSight.Api_HostAddress}}/api/qa/summary
+
+### AI natural-language query (FR-AI.1) — 503 until Ai:Enabled at the Phase 0.5 gate (ADR-008)
+
+POST {{SpanSight.Api_HostAddress}}/api/ai/query
+Content-Type: application/json
+
+{
+  "text": "poor-condition steel bridges near Miami built before 1970"
+}
