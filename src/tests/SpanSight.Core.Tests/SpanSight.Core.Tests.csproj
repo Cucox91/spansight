@@ -19,4 +19,8 @@
     <ProjectReference Include="..\..\SpanSight.Core\SpanSight.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\fixtures\nbi_sample_2025.csv" Link="fixtures\nbi_sample_2025.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
