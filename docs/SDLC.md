@@ -61,8 +61,8 @@ Baselined documents change only by PR, like code. A requirements change carries:
 | Role | Held by | Notes |
 |---|---|---|
 | Product owner / architect / engineer of record | Raziel | All decisions; ADRs record the reasoning ([AI-USAGE.md](./AI-USAGE.md) principle 1) |
-| Implementer | Raziel + AI | Division of labor per AI-USAGE table; [ME]/[AI] tags in the WBS |
-| Reviewer | Raziel (every line) + AI (reverse review of hand-written code) | Merge bar: *can't rewrite it → don't merge it* |
+| Implementer | AI, directed by Raziel *(AI-USAGE v1.2, 2026-07-17; [ME]/[AI] WBS tags historical)* | All build work incl. former [ME] tasks; credentials/billing stay Raziel's |
+| Reviewer | CI (every PR) + AI self-review; Raziel's structured post-completion code study | v1.2 gate: green CI + policy hard rules; mastery verified in the study phase |
 | Verification | CI (automated) + Raziel (demo scripts, gate checks) | CI is the impartial gatekeeper on every PR |
 
 ## 6. Document control
