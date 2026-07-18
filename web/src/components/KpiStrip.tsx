@@ -11,10 +11,22 @@ export default function KpiStrip() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchStats(filters, controller.signal)
-      .then(setStats)
-      .catch(() => undefined)
-    return () => controller.abort()
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const load = () =>
+      fetchStats(filters, controller.signal)
+        .then(setStats)
+        .catch((error: unknown) => {
+          // Keep retrying until the API answers so a race with its startup doesn't leave
+          // the strip blank forever; the filter-change effect re-arms this anyway.
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            retry = setTimeout(load, 2500)
+          }
+        })
+    load()
+    return () => {
+      controller.abort()
+      clearTimeout(retry)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 

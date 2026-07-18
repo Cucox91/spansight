@@ -48,6 +48,61 @@ jobs:
       # deploy.yml (OIDC to Azure) is Week 5 scope.
       - run: az bicep build --file infra/main.bicep --stdout > /dev/null
 
+  e2e:
+    name: E2E smoke + a11y
+    runs-on: ubuntu-latest
+    # Full stack against the fixture: real PostGIS + migrated schema + loaded rows,
+    # the real API, and the dev server the Playwright config starts (FR-0.4 AC-6, NFR-7).
+    services:
+      postgres:
+        image: imresamu/postgis:16-3.5
+        env:
+          POSTGRES_USER: spansight
+          POSTGRES_PASSWORD: spansight
+          POSTGRES_DB: spansight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U spansight"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Load fixture snapshot
+        run: >
+          dotnet run --project src/SpanSight.Ingestion --configuration Release --
+          load --file src/tests/fixtures/nbi_sample_2025.csv --snapshot-year 2025
+      - name: Start API
+        run: |
+          dotnet run --project src/SpanSight.Api --configuration Release --launch-profile http &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:5194/readyz >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "API did not become ready" >&2
+          exit 1
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run e2e
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7
+
   # TODO: dependency + container scanning (working conventions, IMPLEMENTATION-PLAN §3) —
   # follow-up once there is a container image to scan; NuGet audit already fails the
   # dotnet build on known-vulnerable packages (NU1903 + TreatWarningsAsErrors).
