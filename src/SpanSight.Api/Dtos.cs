@@ -145,3 +145,31 @@ public sealed record LookupsDto(
 }
 
 public sealed record NlQueryRequestDto(string Text);
+
+/// <summary>
+/// FR-AI.1 response: the validated predicate in the filter rail's own shape (the SPA applies it
+/// directly to its FilterState), the code-rendered interpretation shown for correction, and any
+/// request fragments the filter cannot express.
+/// </summary>
+public sealed record NlQueryResponseDto(
+    NlQueryResponseDto.FilterDto Filter,
+    string Interpretation,
+    IReadOnlyList<string> Unsupported)
+{
+    public sealed record FilterDto(
+        string? State,
+        IReadOnlyList<string> Conditions,
+        IReadOnlyList<string> TypeGroups,
+        int? YearBuiltMax,
+        int? MinAdt);
+
+    public static NlQueryResponseDto From(SpanSight.Core.Ai.NlFilterResult result) => new(
+        new FilterDto(
+            result.Applied.State,
+            result.Applied.Conditions ?? [],
+            result.Applied.TypeGroups ?? [],
+            result.Applied.YearBuiltMax,
+            result.Applied.MinAdt),
+        result.Interpretation,
+        result.Applied.Unsupported ?? []);
+}
