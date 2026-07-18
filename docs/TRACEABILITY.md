@@ -65,6 +65,6 @@
 
 | Req | Design | Implementation (planned) | Verification sketch | Status |
 |---|---|---|---|---|
-| FR-AI.1 | ADR-008 §2 (schema-constrained → FilterSpec) | `SpanSight.Core.Ai` port + Anthropic adapter in Api; `Ai:Enabled` flag (scaffolded, off) | Golden NL→FilterSpec cases; injection-attempt suite; cost-cap unit tests | Planned (post-Phase 0 demo) |
+| FR-AI.1 | ADR-008 §2 + implementation pins (2026-07-18); SRS v1.2 AC-1…6 | `NlFilterSpec`/`NlFilterTranslator` (Core, rail-shaped schema, fail-closed) · `AnthropicAssistant` (C# SDK, claude-haiku-4-5, structured outputs) · `StubAssistant` · `AiRequestBudget` + cache in `/api/ai/query` · web AskTheMap | Translator unit tests ✓; endpoint tests (dark path, stub path, budget trip, cache hit) ✓; e2e dark-path notice ✓; browser smoke vs national data ("poor truss bridges in Florida built before 1970" → 3 bridges, rail identical to hand-set) ✓; **live-key smoke + `Ai:Enabled` flip = the 0.5 gate [RAZIEL]** | In progress (dark) |
 | FR-AI.2 | ADR-008 §2 narration guardrails | Drawer action + cached narration endpoint | Template-frame assertions (no un-displayed fields); disclaimer presence test | Planned |
 | FR-AI.3 | ADR-008 §5 pgvector RAG | Coding-guide corpus loader + retrieval endpoint | Citation-presence checks; retrieval hit-rate spot checks | Planned (embedding trade study first) |

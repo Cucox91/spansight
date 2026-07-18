@@ -1,6 +1,6 @@
 # SpanSight — National Bridge Asset Intelligence Platform
 
-**Software Requirements Specification** · v1.1 · Author: Raziel Arias · Date: 2026-07-17 · Status: For review — baselines on merge to `main`
+**Software Requirements Specification** · v1.2 · Author: Raziel Arias · Date: 2026-07-18 (v1.1: 2026-07-17) · Status: For review — baselines on merge to `main`
 
 ---
 
@@ -131,7 +131,13 @@ Docker Compose local stack; GitHub Actions CI (build, test, lint); deployed publ
 
 Builds only after the Phase 0 core demo runs with real data; `Ai:Enabled` stays `false` until each FR's acceptance criteria are elaborated and met. Standing guardrail for the whole series: AI output is **translation or description of published data only — never engineering judgment** (GR-6); every AI-authored string carries the disclaimer; user text is data, not instructions (ADR-008 §2–3); LLM spend lives inside NFR-2 (target ≤$5/mo).
 
-- **FR-AI.1 — Natural-language query** · Should · Ask-the-map box translates a plain-English request ("poor-condition steel bridges near Miami built before 1970") into the **existing validated filter predicate** via schema-constrained LLM output; the result is indistinguishable from having set the filters by hand, and the interpreted filter is shown for correction. *(ACs elaborated at build gate.)*
+- **FR-AI.1 — Natural-language query** · Should · Verify: Test + Demo · Ask-the-map box translates a plain-English request ("poor truss bridges in Florida built before 1970") into the **existing validated filter predicate** via schema-constrained LLM output; the result is indistinguishable from having set the filters by hand, and the interpreted filter is shown for correction. *(ACs elaborated 2026-07-18, v1.2.)*
+  - AC-1 The model call is single-turn and schema-constrained to exactly the filter rail's predicate (conditions, state, structure-type groups, built-before year, minimum AADT) plus an `unsupported` list; its output passes through the same `BridgeFilter` validation as a hand-typed query string before anything is applied.
+  - AC-2 Applying the response is indistinguishable from operating the rail by hand: the rail controls, KPI strip, map layer, and result set all reflect the translated predicate through the one shared filter state (FR-0.4 AC-2).
+  - AC-3 The interpretation shown for correction is rendered deterministically from the validated values — model-authored text is never displayed; fragments the filter cannot express are surfaced in it, never silently dropped (GR-6 fail-closed).
+  - AC-4 User text is data, not instructions (ADR-008 §3): no conversation memory, no tool access; requests for judgment or out-of-scope actions land in `unsupported` and change nothing beyond the recognized filter values.
+  - AC-5 Cost governors active (ADR-008 §4): `Ai:Enabled=false` (and any provider/key absence or provider failure) answers 503 ProblemDetails with filters unaffected; a daily request ceiling trips the feature to "temporarily unavailable"; repeats are served from a normalized-input cache; per-request output token cap enforced; API key only via user-secrets/environment (NFR-4).
+  - AC-6 Unit tests cover translation mapping and fail-closed validation; endpoint tests cover the dark path, the enabled path (deterministic stub provider — no key or spend in CI), budget trip, and cache hit; a live-key smoke against the real provider is a gate item run by Raziel.
 - **FR-AI.2 — Record narration** · Could · Drawer action that renders a bridge's already-displayed published values as a plain-English paragraph (template-framed, cached, disclaimer attached). *(ACs at build gate.)*
 - **FR-AI.3 — Coding-guide RAG** · Could · "What does Item 60 mean?" answered from the public FHWA Coding Guide/SNBI definitions with citations, retrieval via pgvector in the serving Postgres. *(ACs + embedding-provider trade study at build gate.)*
 
@@ -239,6 +245,7 @@ Mobile apps · inspection workflow or data entry · load-rating or any engineeri
 | v0.1 | 2026-07-12 | Initial draft: scope, ground rules, goals, personas, phased FR/NFR set, data sources, roadmap, risks. |
 | v1.0 | 2026-07-17 | SRS baseline candidate: document conventions + references (§1.1–1.2); Phase 0 use cases (§4.1); priority, verification method, and acceptance criteria for all Phase 0 FRs (§5) and NFRs (§6); change control per SDLC.md; R-5 mitigation extended. No requirement renumbered; no scope change. |
 | v1.1 | 2026-07-17 | **Scope addition via change control:** Phase 0.5 AI-assist series FR-AI.1–3 (+ G-5, roadmap row, NFR-2 LLM-spend note) per ADR-008. Gated behind Phase 0 core demo; guardrails: GR-6 translation/description-only, schema-constrained outputs, cost caps. |
+| v1.2 | 2026-07-18 | FR-AI.1 acceptance criteria elaborated (AC-1…AC-6) at its build gate per the v1.1 placeholder — schema constrained to the rail predicate, deterministic interpretation, fail-closed guardrails, cost governors, stub-provider test strategy. No new scope; no requirement renumbered. |
 
 ---
 
