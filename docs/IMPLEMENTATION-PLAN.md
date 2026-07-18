@@ -6,6 +6,8 @@ Task tags per the AI policy: **[ME]** hand-written/decided by Raziel · **[AI]**
 
 > **Amendment 2026-07-17 (AI-USAGE v1.1):** [ME] implementation tags in §5 are reinterpreted — AI drafts all components including the novel cores; Raziel's [ME] obligation shifts to line-by-line review, the merge bar, and one hand-rebuilt core per phase (Phase 0 pick: NBI parser or DMS converter). [ME] *decision* tags (schema sign-off, budget, gate reviews, metric definitions) are unchanged. Weeks 2–4 implementation is being executed as a single AI pass delivered in reviewable batches; the weekly structure below remains the review/merge order.
 
+> **Amendment 2026-07-17 later same day (AI-USAGE v1.2):** the [ME]/[AI] split is removed entirely — AI executes every task in this WBS, including former [ME] items, gated by green CI + AI self-review. Raziel retains: architectural decisions (ADRs), credential/billing/account actions (Azure PAYG, portal consents, API keys into secrets), and a structured post-completion code study that replaces pre-merge line review and absorbs the hand-rebuild/AI-free reps. Tags below are kept as written for the historical record.
+
 ## 1. Toolchain & one-time setup (Mac)
 
 | Item | Pin | Note |

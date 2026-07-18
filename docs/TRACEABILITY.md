@@ -6,7 +6,7 @@
 
 **Status values:** Planned · In progress · In review · Done · Deferred · Withdrawn.
 
-> **2026-07-17:** Weeks 2–4 implementation pass delivered to the working tree (AI-USAGE v1.1). FR-0.1/0.2/0.3 and the FR-0.4 SPA are implemented with verification evidence noted below; statuses move to *Done* only when Raziel's review merges to `main`.
+> **2026-07-17:** Weeks 2–4 implementation pass delivered (AI-USAGE v1.1), line-reviewed and merged to `main` as PRs #2/#3. **2026-07-18 (AI-USAGE v1.2):** statuses now move to *Done* when the implementing PR merges with green CI; Raziel's mastery is verified in the post-completion code study. Real 2025 snapshot loaded locally: 743,398 read · 741,131 loaded · 2,267 quarantined (0.30%), run #1.
 
 ---
 
@@ -14,18 +14,18 @@
 
 | Req | Design | Implementation (planned → actual) | Verification | Status |
 |---|---|---|---|---|
-| FR-0.1 | [ARCH §4.2](./ARCHITECTURE.md) batch pipeline · ADR-005 | `SpanSight.Ingestion` `LoadPipeline` (unnest upsert, SHA-256 idempotency, run summaries) + `SpanSight.Core/Ingestion` parser | `Ingestion.Tests` dry-run exact-split; integration: reload no-op + `--force` convergence vs real PostGIS ✓ | In review |
-| FR-0.2 | [ARCH §4.1](./ARCHITECTURE.md) staging/quarantine model | `NbiDmsCoordinateConverter` + `BridgeRowValidator` (10 reason codes) + `/api/qa/summary` + `web` QA page | `Core.Tests` converter/validator fixtures ✓; integration: QA reconciles with run summary + core count ✓ | In review |
-| FR-0.3 | [ARCH §3](./ARCHITECTURE.md) containers · §7 cross-cutting | `SpanSight.Api` endpoints (bridges/geojson/detail/lookups/stats), ProblemDetails, rate limiting, CORS, health, OpenAPI+Scalar | `BridgeQueryBuilderTests` ✓; Testcontainers: filters/bbox-GIST/pagination/404/400 ✓; EXPLAIN/index pass at national scale pending real data | In review |
-| FR-0.4 | [DESIGN.md](./DESIGN.md) + [mockup](./design/mockup.html) → React mapping | `web/src` — `AppShell`, `FilterRail`, `KpiStrip`, `BridgeMap`, `BridgeDrawer`, `QaPage`, shared `FilterState` predicate, `/bridge/{state}/{id}` deep link | **lint/build verification pending (handed to Claude Code)**; Playwright smoke + a11y scan still to add | In review |
-| FR-0.5 | ADR-002 static PMTiles | `GeoJsonExporter` (`export-geojson` + run-meta sidecar) ✓ · `tools/build-tiles.sh` (tippecanoe → PMTiles + run-linked manifest) ✓ · Blob publish (Week 5) | Script ran clean from checkout 2026-07-17 (fixture: 99 features → bridges.pmtiles + manifest tied to run #1); tile-load smoke + laptop interaction check at Blob publish | In progress |
+| FR-0.1 | [ARCH §4.2](./ARCHITECTURE.md) batch pipeline · ADR-005 | `SpanSight.Ingestion` `LoadPipeline` (unnest upsert, SHA-256 idempotency, run summaries) + `SpanSight.Core/Ingestion` parser — merged PR #2 | `Ingestion.Tests` dry-run exact-split; integration: reload no-op + `--force` convergence vs real PostGIS ✓; real 2025 snapshot: 743,398 → 741,131 loaded (2026-07-18) ✓ | Done |
+| FR-0.2 | [ARCH §4.1](./ARCHITECTURE.md) staging/quarantine model | `NbiDmsCoordinateConverter` + `BridgeRowValidator` (10 reason codes) + `/api/qa/summary` + `web` QA page — merged PR #2 | `Core.Tests` converter/validator fixtures ✓; integration: QA reconciles with run summary + core count ✓; real data: 2,267 quarantined (0.30%), QA page reconciles ✓ | Done |
+| FR-0.3 | [ARCH §3](./ARCHITECTURE.md) containers · §7 cross-cutting | `SpanSight.Api` endpoints (bridges/geojson/detail/lookups/stats), ProblemDetails, rate limiting, CORS, health, OpenAPI+Scalar — merged PR #2 | `BridgeQueryBuilderTests` ✓; Testcontainers: filters/bbox-GIST/pagination/404/400 ✓; EXPLAIN/index pass at 741k rows 2026-07-18: GIST bbox 0.9 ms, paged filter 1.6 ms, national group-by 31 ms; warm API 3–52 ms end-to-end ✓ | Done |
+| FR-0.4 | [DESIGN.md](./DESIGN.md) + [mockup](./design/mockup.html) → React mapping | `web/src` — `AppShell`, `FilterRail`, `KpiStrip`, `BridgeMap`, `BridgeDrawer`, `QaPage`, shared `FilterState` predicate, `/bridge/{state}/{id}` deep link — merged PR #2 | lint + `tsc`/vite build clean ✓; full-stack smoke (fixture + national data, truncation note at 741k) ✓; **Playwright smoke (AC-6) + a11y scan (AC-4) still to add** | In progress |
+| FR-0.5 | ADR-002 static PMTiles | `GeoJsonExporter` (`export-geojson` + run-meta sidecar) ✓ · `tools/build-tiles.sh` (tippecanoe → PMTiles + run-linked manifest) ✓ — merged PR #3 · Blob publish (Week 5) | Script clean from checkout: fixture 99 → pmtiles ✓; national 2026-07-18: 741,131 features → 22.4 MB `bridges.pmtiles` + manifest tied to run #1 ✓; tile-load smoke + laptop interaction check at Blob publish | In progress |
 | FR-0.6 | [ARCH §7](./ARCHITECTURE.md) CI/CD · §5 topology | `docker-compose.yml` ✓ · `.github/workflows/ci.yml` ✓ · `infra/` Bicep baseline ✓ · `deploy.yml` (Week 5) | CI green on PRs ✓; deploy + smoke green (Week 5); demo URL check | In progress |
 
 ## 2. Non-functional requirements (Phase 0 scope)
 
 | Req | Design | Implementation | Verification | Status |
 |---|---|---|---|---|
-| NFR-1 | ADR-002 (tiles off API) · indexed `core` | Spatial/attribute indexes ([ME] Week 3); pagination caps | EXPLAIN pass; load-test script (pre-application season); App Insights p95 panel | Planned |
+| NFR-1 | ADR-002 (tiles off API) · indexed `core` | GIST on `location` + btrees on every filter column (`InitialSchema`); pagination caps | EXPLAIN pass at 741k rows 2026-07-18 ✓ (0.9–31 ms hot shapes, warm API 3–52 ms local); load-test script (pre-application season); App Insights p95 panel | In progress |
 | NFR-2 | ADR-006-B topology · [HOSTING-ANALYSIS](./HOSTING-ANALYSIS.md) | Azure budget + $40 alert (**armed before first resource — pending [ME]**) | Portal inspection at each gate; spend log in gate notes | In progress |
 | NFR-3 | ARCH §5 restart policies | Idempotent upsert + resumable runs (Week 2) | Kill-and-rerun test (FR-0.1 AC-3); compose/ACA restart config inspection | Planned |
 | NFR-4 | ARCH §7 security | Rate limiter, CORS, headers (Week 3); scans in `ci.yml` ✓; secret-push protection | CI scan results; config inspection; no-PII source review (§7 SRS) | In progress |
