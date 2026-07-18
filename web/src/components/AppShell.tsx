@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import AskTheMap from './AskTheMap'
 
 export default function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -24,8 +25,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
         </nav>
         <div className="spacer" />
-        {/* FR-AI.1 affordance — dark until Phase 0.5 flips Ai:Enabled (ADR-008). */}
-        <input className="search" placeholder="Ask the map (AI) — Phase 0.5" disabled aria-label="AI query, coming in Phase 0.5" />
+        {/* FR-AI.1 — while Ai:Enabled is false the API answers 503 and the box explains itself. */}
+        <AskTheMap />
       </header>
 
       <main className="app-main">{children}</main>

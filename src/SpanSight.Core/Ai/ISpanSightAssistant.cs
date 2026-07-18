@@ -18,6 +18,9 @@ public interface ISpanSightAssistant
 
 /// <summary>
 /// The translated filter plus the human-readable interpretation the UI shows for correction
-/// ("Showing: Poor-condition steel bridges in FL built before 1970").
+/// ("Showing: Poor condition · Truss / Arch · Florida"). <see cref="Applied"/> is the validated
+/// rail-shaped predicate the SPA applies directly; <see cref="Filter"/> is the same predicate in
+/// API form. The interpretation is rendered deterministically from validated values — never
+/// model-authored text (GR-6, ADR-008 §2).
 /// </summary>
-public sealed record NlFilterResult(BridgeFilter Filter, string Interpretation);
+public sealed record NlFilterResult(BridgeFilter Filter, NlFilterSpec Applied, string Interpretation);

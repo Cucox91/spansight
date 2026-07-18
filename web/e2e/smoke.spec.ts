@@ -55,6 +55,20 @@ test('QA page renders the reconciled run summary (FR-0.2 AC-3)', async ({ page }
   await expect(page.getByText('not engineering advice')).toBeVisible()
 })
 
+test('ask-the-map degrades to the Phase 0.5 notice while Ai:Enabled is false (FR-AI.1)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const box = page.getByRole('textbox', { name: 'Ask the map in plain English' })
+  await box.fill('poor truss bridges in Florida')
+  await page.getByRole('button', { name: 'Ask' }).click()
+  // Dark by default (ADR-008): the API answers 503 and the box explains itself; hand-set
+  // filters keep working. When the 0.5 gate flips the flag, this asserts the enabled path.
+  await expect(page.locator('.ask-notice')).toContainText(/Phase 0.5|Showing:/, {
+    timeout: 15_000,
+  })
+})
+
 test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
   const severe = (violations: Array<{ impact?: string | null }>) =>
     violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')

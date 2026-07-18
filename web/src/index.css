@@ -518,3 +518,56 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* ============ ASK THE MAP (FR-AI.1) ============ */
+.ask-wrap {
+  position: relative;
+}
+
+.ask-notice {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.ask-notice button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.ask-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ask-submit {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.ask-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

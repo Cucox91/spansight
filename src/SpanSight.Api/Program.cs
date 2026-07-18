@@ -1,5 +1,7 @@
 using System.Threading.RateLimiting;
 
+using Anthropic;
+
 using Azure.Core;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
@@ -15,6 +17,7 @@ using OpenTelemetry.Trace;
 using Scalar.AspNetCore;
 
 using SpanSight.Api;
+using SpanSight.Api.Ai;
 using SpanSight.Api.Endpoints;
 using SpanSight.Core.Ai;
 using SpanSight.Core.Data;
@@ -49,6 +52,27 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.Configure<AiOptions>(builder.Configuration.GetSection(AiOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<AiRequestBudget>();
+
+// FR-AI.1 provider registration (ADR-008): dark unless Ai:Enabled and a usable provider exist.
+// The Anthropic key comes from user-secrets locally / Container Apps secrets in cloud — never
+// from appsettings (NFR-4); a missing key leaves the endpoint on its 503 path.
+var aiConfig = builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions();
+if (aiConfig.Enabled)
+{
+    switch (aiConfig.Provider)
+    {
+        case "anthropic" when
+            (builder.Configuration["Ai:ApiKey"] ?? builder.Configuration["ANTHROPIC_API_KEY"]) is { Length: > 0 } apiKey:
+            builder.Services.AddSingleton(new AnthropicClient { ApiKey = apiKey });
+            builder.Services.AddSingleton<ISpanSightAssistant, AnthropicAssistant>();
+            break;
+        case "stub":
+            builder.Services.AddSingleton<ISpanSightAssistant, StubAssistant>();
+            break;
+    }
+}
 
 builder.Services.AddHealthChecks()
     .AddCheck<DbReadyHealthCheck>("database", tags: ["ready"]);

@@ -15,8 +15,8 @@ public sealed class AiOptions
     /// <summary>Provider id for the adapter registration (first target: "anthropic").</summary>
     public string Provider { get; set; } = "anthropic";
 
-    /// <summary>Model id, chosen for cost (Haiku-class); pinned at implementation time per ADR-008.</summary>
-    public string Model { get; set; } = "";
+    /// <summary>Model id — Haiku-class for cost per ADR-008 §4; pinned 2026-07-18.</summary>
+    public string Model { get; set; } = "claude-haiku-4-5";
 
     /// <summary>Hard daily request ceiling — the cost governor that trips the feature off (ADR-008 §4).</summary>
     public int MaxRequestsPerDay { get; set; } = 200;
