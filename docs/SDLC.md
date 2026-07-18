@@ -33,8 +33,8 @@ Each phase internally runs the full cycle — elaborate requirements → design 
 | Design | Architecture, ADRs, data model, visual design | [ARCHITECTURE.md](./ARCHITECTURE.md) · [DESIGN.md](./DESIGN.md) + [design/mockup.html](./design/mockup.html) · [HOSTING-ANALYSIS.md](./HOSTING-ANALYSIS.md) | Baselined (v0.2 / ADR-006-B) |
 | Implementation | WBS execution under AI policy; conventions in repo | [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) §5 · [AI-USAGE.md](./AI-USAGE.md) · `CLAUDE.md` · PR template · CI | Phase 0 in progress |
 | Verification | Test strategy, plans, coverage and performance evidence | `TEST-PLAN.md` — **planned, next artifact** (formalizes ARCHITECTURE §7 testing) · CI gates | Planned (Week 2 gate) |
-| Release & deployment | IaC, pipeline, release checklist, rollback | `infra/` Bicep · `.github/workflows/` · `RUNBOOK.md` — **planned** (release + ops) | Partial (scaffolded) |
-| Operations & maintenance | Monitoring, cost watch, annual data refresh, incident notes | `RUNBOOK.md` (planned, Week 5) · App Insights dashboards · budget alert · FR-3.4 refresh | Planned |
+| Release & deployment | IaC, pipeline, release checklist, rollback | `infra/` Bicep · `.github/workflows/` (`ci.yml`, `deploy.yml`) · [RUNBOOK.md](./RUNBOOK.md) | Authored; first deploy pending RUNBOOK §1 |
+| Operations & maintenance | Monitoring, cost watch, annual data refresh, incident notes | [RUNBOOK.md](./RUNBOOK.md) §5 · App Insights dashboards · budget alert (Bicep) · FR-3.4 refresh | Documented; live at first deploy |
 
 Requirements/design baselines are living: a phase gate may amend them via change control (§4), never by silent edit.
 
@@ -87,7 +87,7 @@ Controlled documents: everything in `docs/` plus `CLAUDE.md`. Conventions:
 | [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) | Toolchain, conventions, WBS, DoD, gate retros | v1.0 · baselined |
 | [AI-USAGE.md](./AI-USAGE.md) | AI policy (transparency artifact) | v1.0 · baselined |
 | `TEST-PLAN.md` | Test strategy & plan | planned — next artifact (Week 2 gate) |
-| `RUNBOOK.md` | Release checklist, rollback, ops/monitoring, annual refresh | planned (Week 5) |
+| [RUNBOOK.md](./RUNBOOK.md) | One-time Azure setup, deploy flow, data/tiles publish, rollback, ops | v1.0 · authored 2026-07-18 |
 | `CLAUDE.md` (repo root) | AI session context + current status | living |
 
 ---

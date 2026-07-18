@@ -23,9 +23,13 @@ test('explorer: KPIs load, filter recomputes, disclaimer always visible', async 
   await expect(bridgesShown).not.toHaveText(before ?? '', { timeout: 20_000 })
 })
 
+// Local runs hit /api through the dev-server proxy; post-deploy runs pass the Container App
+// origin via PLAYWRIGHT_API_URL because the deployed SPA calls the API cross-origin.
+const API_BASE = process.env.PLAYWRIGHT_API_URL ?? ''
+
 test('drawer deep link opens decoded record, Esc closes (AC-3)', async ({ page }) => {
   // Discover a real bridge id from the API so the test is dataset-independent
-  const response = await page.request.get('/api/bridges?pageSize=1')
+  const response = await page.request.get(`${API_BASE}/api/bridges?pageSize=1`)
   expect(response.ok()).toBeTruthy()
   const { items } = (await response.json()) as { items: Array<{ id: string; state: string }> }
   expect(items.length).toBeGreaterThan(0)

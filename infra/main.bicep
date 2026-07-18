@@ -17,11 +17,25 @@ param pgEntraAdminObjectId string = ''
 @description('Display name / UPN of the Postgres Entra admin principal.')
 param pgEntraAdminPrincipalName string = ''
 
+@description('Email for the NFR-2 budget alert; armed with the very first deployment.')
+param budgetContactEmail string
+
+@description('API image (ghcr.io/...); empty on infra-only deploys — the app deploys once an image exists.')
+param apiImage string = ''
+
 var baseName = 'spansight'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: 'rg-${baseName}-${env}'
   location: location
+}
+
+// Subscription-scope budget: NFR-2 requires the alert armed before/with the first resource.
+module budget 'modules/budget.bicep' = {
+  name: 'budget'
+  params: {
+    contactEmail: budgetContactEmail
+  }
 }
 
 module logAnalytics 'modules/log-analytics.bicep' = {
@@ -83,9 +97,25 @@ module appInsights 'modules/app-insights.bicep' = {
   }
 }
 
+module containerApp 'modules/container-app.bicep' = if (apiImage != '') {
+  name: 'container-app'
+  scope: rg
+  params: {
+    name: 'ca-${baseName}-api-${env}'
+    location: location
+    environmentId: containerAppsEnv.outputs.environmentId
+    image: apiImage
+    postgresFqdn: postgres.outputs.fqdn
+    appInsightsConnectionString: appInsights.outputs.connectionString
+    corsOrigin: 'https://${staticWebApp.outputs.defaultHostname}'
+  }
+}
+
 output resourceGroupName string = rg.name
 output postgresFqdn string = postgres.outputs.fqdn
 output containerAppsEnvironmentId string = containerAppsEnv.outputs.environmentId
 output staticWebAppDefaultHostname string = staticWebApp.outputs.defaultHostname
 output storageAccountName string = storage.outputs.accountName
 output appInsightsConnectionString string = appInsights.outputs.connectionString
+output apiFqdn string = apiImage != '' ? containerApp!.outputs.fqdn : ''
+output apiPrincipalId string = apiImage != '' ? containerApp!.outputs.principalId : ''

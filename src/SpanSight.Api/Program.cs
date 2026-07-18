@@ -1,5 +1,9 @@
 using System.Threading.RateLimiting;
 
+using Azure.Core;
+using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,10 +21,29 @@ using SpanSight.Core.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<SpanSightDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("SpanSight"),
-        npgsql => npgsql.UseNetTopologySuite()));
+// Cloud DB auth is Entra-only (ADR-006-B: password auth disabled on the server); locally the
+// compose connection string carries a password and this flag stays off.
+if (builder.Configuration.GetValue<bool>("Database:UseEntraToken"))
+{
+    var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("SpanSight"));
+    dataSourceBuilder.UseNetTopologySuite();
+    var credential = new DefaultAzureCredential();
+    dataSourceBuilder.UsePeriodicPasswordProvider(
+        async (_, cancellationToken) => (await credential.GetTokenAsync(
+            new TokenRequestContext(["https://ossrdbms-aad.database.windows.net/.default"]), cancellationToken)).Token,
+        successRefreshInterval: TimeSpan.FromMinutes(45),
+        failureRefreshInterval: TimeSpan.FromSeconds(10));
+    var dataSource = dataSourceBuilder.Build();
+    builder.Services.AddDbContext<SpanSightDbContext>(options =>
+        options.UseNpgsql(dataSource, npgsql => npgsql.UseNetTopologySuite()));
+}
+else
+{
+    builder.Services.AddDbContext<SpanSightDbContext>(options =>
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("SpanSight"),
+            npgsql => npgsql.UseNetTopologySuite()));
+}
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddProblemDetails();
@@ -53,8 +76,9 @@ var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>
 builder.Services.AddCors(cors => cors.AddDefaultPolicy(policy =>
     policy.WithOrigins(corsOrigins).AllowAnyHeader().WithMethods("GET", "POST")));
 
-// OTel is config-gated: local compose runs a collector on 4318; cloud sets the App Insights
-// endpoint (ADR-006-B). No endpoint → no exporter, zero overhead.
+// OTel is config-gated (ADR-006-B): local compose sets Otlp:Endpoint (collector on 4318);
+// cloud sets APPLICATIONINSIGHTS_CONNECTION_STRING and traces flow to App Insights (NFR-6).
+// Neither present → no exporter, zero overhead.
 var otlpEndpoint = builder.Configuration["Otlp:Endpoint"];
 if (!string.IsNullOrEmpty(otlpEndpoint))
 {
@@ -67,6 +91,12 @@ if (!string.IsNullOrEmpty(otlpEndpoint))
         .WithMetrics(metrics => metrics
             .AddAspNetCoreInstrumentation()
             .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)));
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    builder.Services.AddOpenTelemetry()
+        .UseAzureMonitor()
+        .WithTracing(tracing => tracing.AddNpgsql());
 }
 
 var app = builder.Build();

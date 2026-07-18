@@ -9,9 +9,11 @@ import type {
 } from './types'
 import { toSearchParams, type FilterState } from '../state/filters'
 
-// Dev: Vite proxies /api to the local API (vite.config.ts). Prod: Static Web Apps routes /api
-// to the Container App (ADR-006-B), so same-origin paths work in both.
-const BASE = ''
+// Dev: Vite proxies /api to the local API (vite.config.ts), so BASE stays ''. Prod: the SPA
+// (Static Web Apps, Free tier — no linked backend) calls the Container App cross-origin;
+// deploy.yml bakes VITE_API_BASE_URL in at build time and the API's CORS allowlists the SWA
+// hostname (ADR-006-B, infra/modules/container-app.bicep).
+const BASE: string = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${BASE}${path}`, { signal })

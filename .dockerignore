@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/node_modules/
+web/
+data/
+docs/
+_to_delete/
+.git/
+.github/
+.claude/
+infra/
+ops/
+tools/
