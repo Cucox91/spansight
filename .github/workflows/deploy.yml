@@ -1,0 +1,190 @@
+name: Deploy
+
+# FR-0.6 AC-3: OIDC → Azure, Bicep provision (budget alert included — NFR-2), EF migration,
+# image rollout, SPA publish, smoke. Manual dispatch until the first green deploy proves the
+# one-time setup (docs/RUNBOOK.md §1); then add `push: branches: [main]`.
+#
+# Secrets: AZURE_CLIENT_ID · AZURE_TENANT_ID · AZURE_SUBSCRIPTION_ID (OIDC federation only —
+# no stored cloud credentials). Vars: BUDGET_ALERT_EMAIL · VITE_TILES_URL (set after the first
+# tile publish, RUNBOOK §3).
+on:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: 'Run the full Playwright smoke against the live demo (needs data loaded)'
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+concurrency: deploy-demo
+
+env:
+  LOCATION: eastus2
+  PG_SERVER: psql-spansight-demo
+  SWA_NAME: stapp-spansight-demo
+
+jobs:
+  image:
+    name: Build & push API image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: meta
+        # ghcr requires a lowercase repository path
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/spansight-api:sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SpanSight.Api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+
+  deploy:
+    name: Provision + migrate
+    runs-on: ubuntu-latest
+    needs: image
+    outputs:
+      api_fqdn: ${{ steps.outputs.outputs.api_fqdn }}
+      swa_hostname: ${{ steps.outputs.outputs.swa_hostname }}
+      pg_fqdn: ${{ steps.outputs.outputs.pg_fqdn }}
+      rg: ${{ steps.outputs.outputs.rg }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep (subscription scope)
+        env:
+          BUDGET_CONTACT_EMAIL: ${{ vars.BUDGET_ALERT_EMAIL }}
+          API_IMAGE: ${{ needs.image.outputs.image }}
+        run: >
+          az deployment sub create
+          --name spansight-${{ github.run_id }}
+          --location "$LOCATION"
+          --template-file infra/main.bicep
+          --parameters infra/main.bicepparam
+
+      - name: Read deployment outputs
+        id: outputs
+        run: |
+          outputs=$(az deployment sub show --name spansight-${{ github.run_id }} --query properties.outputs -o json)
+          echo "api_fqdn=$(jq -r .apiFqdn.value <<<"$outputs")" >> "$GITHUB_OUTPUT"
+          echo "swa_hostname=$(jq -r .staticWebAppDefaultHostname.value <<<"$outputs")" >> "$GITHUB_OUTPUT"
+          echo "pg_fqdn=$(jq -r .postgresFqdn.value <<<"$outputs")" >> "$GITHUB_OUTPUT"
+          echo "rg=$(jq -r .resourceGroupName.value <<<"$outputs")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      # Transient, operational-only firewall opening for the migration step — removed in the
+      # same run (see the always() step below). Infrastructure stays Bicep-only (hard rule 5);
+      # GitHub-hosted runners are outside the AllowAllAzureServices rule.
+      - name: Open runner firewall rule
+        run: |
+          ip=$(curl -fsS https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group "${{ steps.outputs.outputs.rg }}" \
+            --name "$PG_SERVER" \
+            --rule-name "gh-runner-${{ github.run_id }}" \
+            --start-ip-address "$ip" --end-ip-address "$ip" >/dev/null
+
+      - name: Apply EF migrations (Entra token, no password)
+        run: |
+          token=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+          echo "::add-mask::$token"
+          dotnet run --project src/SpanSight.Ingestion --configuration Release -- migrate \
+            --connection "Host=${{ steps.outputs.outputs.pg_fqdn }};Database=spansight;Username=spansight-deploy;Password=$token;Ssl Mode=Require"
+
+      - name: Remove runner firewall rule
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "${{ steps.outputs.outputs.rg }}" \
+            --name "$PG_SERVER" \
+            --rule-name "gh-runner-${{ github.run_id }}" --yes || true
+
+  spa:
+    name: Build & publish SPA
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: Build SPA against the deployed API
+        env:
+          VITE_API_BASE_URL: https://${{ needs.deploy.outputs.api_fqdn }}
+          VITE_TILES_URL: ${{ vars.VITE_TILES_URL }}
+        run: npm run build
+        working-directory: web
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Fetch SWA deployment token
+        id: swa
+        run: |
+          token=$(az staticwebapp secrets list --name "$SWA_NAME" --query properties.apiKey -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          action: upload
+          app_location: web/dist
+          skip_app_build: true
+          skip_api_build: true
+
+  smoke:
+    name: Post-deploy smoke
+    runs-on: ubuntu-latest
+    needs: [deploy, spa]
+    steps:
+      - uses: actions/checkout@v7
+      - name: API readiness + SPA reachability
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS "https://${{ needs.deploy.outputs.api_fqdn }}/readyz" >/dev/null 2>&1 && break
+            [ "$i" = 30 ] && { echo "API never became ready" >&2; exit 1; }
+            sleep 10
+          done
+          curl -fsS "https://${{ needs.deploy.outputs.swa_hostname }}" >/dev/null
+          curl -fsS "https://${{ needs.deploy.outputs.api_fqdn }}/api/stats/summary" >/dev/null
+          echo "Demo live: https://${{ needs.deploy.outputs.swa_hostname }}"
+      - uses: actions/setup-node@v6
+        if: ${{ inputs.run_e2e }}
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Full Playwright smoke vs live demo (FR-0.4 AC-6 / FR-0.6 AC-3)
+        if: ${{ inputs.run_e2e }}
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: https://${{ needs.deploy.outputs.swa_hostname }}
+          PLAYWRIGHT_API_URL: https://${{ needs.deploy.outputs.api_fqdn }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
