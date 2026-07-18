@@ -3,6 +3,7 @@ import type {
   BridgeFeatureCollection,
   BridgeSummary,
   Lookups,
+  NlQueryResponse,
   PagedResponse,
   QaSummary,
   StatsSummary,
@@ -55,4 +56,27 @@ export function fetchQaSummary(signal?: AbortSignal): Promise<QaSummary> {
 
 export function fetchLookups(signal?: AbortSignal): Promise<Lookups> {
   return getJson('/api/lookups', signal)
+}
+
+/**
+ * FR-AI.1 ask-the-map. Non-2xx responses surface the ProblemDetails detail (e.g. the Phase 0.5
+ * "not enabled" message or the budget-exhausted notice) as the thrown error message.
+ */
+export async function askTheMap(text: string): Promise<NlQueryResponse> {
+  const response = await fetch(`${BASE}/api/ai/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!response.ok) {
+    let detail = `API ${response.status}`
+    try {
+      const problem = (await response.json()) as { detail?: string; title?: string }
+      detail = problem.detail ?? problem.title ?? detail
+    } catch {
+      // keep the status fallback
+    }
+    throw new Error(detail)
+  }
+  return (await response.json()) as NlQueryResponse
 }

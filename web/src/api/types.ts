@@ -112,3 +112,16 @@ export interface Lookups {
   conditionRatings: Record<string, string>
   conditionClasses: string[]
 }
+
+/** FR-AI.1 response: the rail-shaped validated filter + code-rendered interpretation. */
+export interface NlQueryResponse {
+  filter: {
+    state: string | null
+    conditions: string[]
+    typeGroups: string[]
+    yearBuiltMax: number | null
+    minAdt: number | null
+  }
+  interpretation: string
+  unsupported: string[]
+}
