@@ -23,7 +23,7 @@ permissions:
 concurrency: deploy-demo
 
 env:
-  LOCATION: eastus2
+  LOCATION: southcentralus
   PG_SERVER: psql-spansight-demo
   SWA_NAME: stapp-spansight-demo
 

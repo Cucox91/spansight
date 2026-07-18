@@ -9,7 +9,7 @@ targetScope = 'subscription'
 param env string = 'demo'
 
 @description('Primary region for all resources (in-region API↔DB latency per ADR-006-B).')
-param location string = 'eastus2'
+param location string = 'southcentralus'
 
 @description('Object ID of the Entra principal that administers Postgres (password auth is disabled).')
 param pgEntraAdminObjectId string = ''
