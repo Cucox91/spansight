@@ -51,7 +51,9 @@ export default function QaPage() {
   const maxState = Math.max(1, ...summary.byState.map((s) => s.count))
 
   return (
-    <div className="qa-page">
+    // Focusable: the report is a scrollable region of static text, so keyboard users need
+    // the container itself reachable to scroll it (axe scrollable-region-focusable, NFR-7).
+    <div className="qa-page" role="region" aria-label="Data quality report" tabIndex={0}>
       <h2>Data quality — latest load</h2>
       <p className="qa-meta">
         {run.sourceFile} · snapshot {run.snapshotYear} · run #{run.id} ·{' '}

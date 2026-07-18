@@ -18,6 +18,8 @@ node_modules/
 web/dist/
 *.tsbuildinfo
 npm-debug.log*
+web/test-results/
+web/playwright-report/
 
 # Local env & secrets (never commit)
 .env
