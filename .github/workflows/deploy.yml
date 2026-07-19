@@ -1,13 +1,15 @@
 name: Deploy
 
 # FR-0.6 AC-3: OIDC → Azure, Bicep provision (budget alert included — NFR-2), EF migration,
-# image rollout, SPA publish, smoke. Manual dispatch until the first green deploy proves the
-# one-time setup (docs/RUNBOOK.md §1); then add `push: branches: [main]`.
+# image rollout, SPA publish, smoke. Every merge to main deploys (first green run proved the
+# one-time setup 2026-07-19 — docs/RUNBOOK.md §1); dispatch manually for the e2e option.
 #
 # Secrets: AZURE_CLIENT_ID · AZURE_TENANT_ID · AZURE_SUBSCRIPTION_ID (OIDC federation only —
 # no stored cloud credentials). Vars: BUDGET_ALERT_EMAIL · VITE_TILES_URL (set after the first
 # tile publish, RUNBOOK §3).
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       run_e2e:
