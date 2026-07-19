@@ -23,7 +23,9 @@ export default function BridgeMap() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [basemapFailed, setBasemapFailed] = useState(false)
-  const [loadingData, setLoadingData] = useState(true)
+  // Tiles mode renders progressively from the PMTiles source and never runs the fallback
+  // effect below — the only place this flag is ever cleared — so it must start false there.
+  const [loadingData, setLoadingData] = useState(!TILES_URL)
   const [apiError, setApiError] = useState(false)
   const [meta, setMeta] = useState<GeoJsonMeta | null>(null)
   const { filters } = useFilters()
