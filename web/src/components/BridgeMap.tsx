@@ -6,7 +6,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { fetchGeoJson } from '../api/client'
 import type { GeoJsonMeta } from '../api/types'
 import { useFilters } from '../state/FiltersContext'
-import { filtersKey } from '../state/filters'
+import {
+  ALL_CONDITIONS,
+  ALL_TYPE_GROUPS,
+  TYPE_GROUPS,
+  filtersKey,
+  type FilterState,
+} from '../state/filters'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -104,6 +110,16 @@ export default function BridgeMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Tiles path: the PMTiles archive is the static national set, so the shared predicate
+  // applies client-side as a layer filter over the minified tile schema (tools/build-tiles.sh).
+  useEffect(() => {
+    if (!TILES_URL || !mapReady) {
+      return
+    }
+    mapRef.current?.setFilter('bridge-points', tileFilter(filters))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, mapReady])
+
   // GeoJSON fallback path: refetch on every predicate change; abort superseded requests.
   useEffect(() => {
     if (TILES_URL || !mapReady) {
@@ -150,6 +166,38 @@ export default function BridgeMap() {
       )}
     </>
   )
+}
+
+/**
+ * FilterState → MapLibre filter over tile properties, mirroring toSearchParams semantics:
+ * all-selected dimensions stay unconstrained; bounded year/ADT exclude features missing the
+ * property, matching the API's SQL comparisons against NULL.
+ */
+function tileFilter(filters: FilterState): maplibregl.FilterSpecification | null {
+  const clauses: unknown[] = []
+
+  if (filters.conditions.length > 0 && filters.conditions.length < ALL_CONDITIONS.length) {
+    clauses.push(['in', ['get', 'cond'], ['literal', filters.conditions]])
+  }
+
+  if (filters.state) {
+    clauses.push(['==', ['get', 'state'], filters.state])
+  }
+
+  if (filters.typeGroups.length > 0 && filters.typeGroups.length < ALL_TYPE_GROUPS.length) {
+    const designs = filters.typeGroups.flatMap((group) => [...TYPE_GROUPS[group]])
+    clauses.push(['in', ['get', 'design'], ['literal', designs]])
+  }
+
+  if (filters.yearBuiltMax !== null) {
+    clauses.push(['<=', ['coalesce', ['get', 'year'], 99999], filters.yearBuiltMax])
+  }
+
+  if (filters.minAdt > 0) {
+    clauses.push(['>=', ['coalesce', ['get', 'adt'], -1], filters.minAdt])
+  }
+
+  return clauses.length > 0 ? (['all', ...clauses] as unknown as maplibregl.FilterSpecification) : null
 }
 
 function paintSpec(): maplibregl.CircleLayerSpecification['paint'] {
