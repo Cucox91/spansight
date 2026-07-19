@@ -42,6 +42,20 @@ resource allowedExtensions 'Microsoft.DBforPostgreSQL/flexibleServers/configurat
   }
 }
 
+// The serving database. Locally compose creates it (POSTGRES_DB); in cloud it must be declared,
+// or the migration step fails with "database does not exist".
+resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
+  parent: server
+  name: 'spansight'
+  dependsOn: [allowedExtensions]
+}
+
+// Serialized after the configuration change and database creation: sibling child resources
+// deploy in parallel by default, and an in-flight config update puts the server in 'Updating',
+// which rejects Entra-admin operations (AadAuthOperationCannotBePerformedWhenServerIsNotAccessible
+// — burned deploy runs 3-4). NOTE: principalName must be ≤63 chars — PostgreSQL truncates role
+// identifiers to 63 bytes, and the administrators PUT is only idempotent when the submitted name
+// matches the stored (truncated) one exactly.
 resource entraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2024-08-01' = if (entraAdminObjectId != '') {
   parent: server
   name: entraAdminObjectId
@@ -50,6 +64,7 @@ resource entraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@20
     principalName: entraAdminPrincipalName
     tenantId: subscription().tenantId
   }
+  dependsOn: [database]
 }
 
 // Public access + Azure-services firewall rule is the cheap demo pattern; VNet integration
