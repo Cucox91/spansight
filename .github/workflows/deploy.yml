@@ -99,8 +99,8 @@ jobs:
           ip=$(curl -fsS https://api.ipify.org)
           az postgres flexible-server firewall-rule create \
             --resource-group "${{ steps.outputs.outputs.rg }}" \
-            --name "$PG_SERVER" \
-            --rule-name "gh-runner-${{ github.run_id }}" \
+            --server-name "$PG_SERVER" \
+            --name "gh-runner-${{ github.run_id }}" \
             --start-ip-address "$ip" --end-ip-address "$ip" >/dev/null
 
       - name: Apply EF migrations (Entra token, no password)
@@ -115,8 +115,8 @@ jobs:
         run: |
           az postgres flexible-server firewall-rule delete \
             --resource-group "${{ steps.outputs.outputs.rg }}" \
-            --name "$PG_SERVER" \
-            --rule-name "gh-runner-${{ github.run_id }}" --yes || true
+            --server-name "$PG_SERVER" \
+            --name "gh-runner-${{ github.run_id }}" --yes || true
 
   spa:
     name: Build & publish SPA
