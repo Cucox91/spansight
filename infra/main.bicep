@@ -11,6 +11,9 @@ param env string = 'demo'
 @description('Primary region for all resources (in-region API↔DB latency per ADR-006-B).')
 param location string = 'southcentralus'
 
+@description('Static Web Apps is only offered in a short region list (centralus, eastus2, westus2, westeurope, eastasia); its assets are edge-served, so metadata placement does not affect latency.')
+param swaLocation string = 'centralus'
+
 @description('Object ID of the Entra principal that administers Postgres (password auth is disabled).')
 param pgEntraAdminObjectId string = ''
 
@@ -73,7 +76,7 @@ module staticWebApp 'modules/static-web-app.bicep' = {
   scope: rg
   params: {
     name: 'stapp-${baseName}-${env}'
-    location: location
+    location: swaLocation
   }
 }
 
