@@ -87,6 +87,7 @@ module storage 'modules/storage.bicep' = {
     // Storage account names: 3–24 chars, lowercase alphanumeric, globally unique.
     name: 'st${baseName}${env}'
     location: location
+    corsOrigin: 'https://${staticWebApp.outputs.defaultHostname}'
   }
 }
 

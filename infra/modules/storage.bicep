@@ -2,6 +2,9 @@
 param name string
 param location string
 
+@description('SPA origin allowed to make cross-origin range requests for PMTiles; empty disables CORS (e.g. before the SWA exists).')
+param corsOrigin string = ''
+
 resource account 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: name
   location: location
@@ -23,7 +26,19 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   parent: account
   name: 'default'
   properties: {
-    // TODO: CORS rule for MapLibre range requests once the SWA hostname exists (Week 5).
+    // MapLibre's pmtiles protocol reads the archive with cross-origin HTTP range requests,
+    // so the SPA origin needs Range allowed and Content-Range/ETag exposed (ADR-002).
+    cors: corsOrigin == '' ? null : {
+      corsRules: [
+        {
+          allowedOrigins: [corsOrigin]
+          allowedMethods: ['GET', 'HEAD', 'OPTIONS']
+          allowedHeaders: ['Range', 'If-Match', 'If-None-Match']
+          exposedHeaders: ['Content-Range', 'Content-Length', 'Accept-Ranges', 'ETag']
+          maxAgeInSeconds: 3600
+        }
+      ]
+    }
   }
 }
 
