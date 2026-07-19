@@ -83,8 +83,8 @@ Ingestion never runs in the cloud (ARCHITECTURE §3) — load the snapshot from 
 
 ```bash
 # Temporary client-IP firewall rule (remove after — operational, not infrastructure)
-az postgres flexible-server firewall-rule create -g rg-spansight-demo -n psql-spansight-demo \
-  --rule-name dev-mac --start-ip-address "$(curl -fsS https://api.ipify.org)" --end-ip-address "$(curl -fsS https://api.ipify.org)"
+az postgres flexible-server firewall-rule create -g rg-spansight-demo -s psql-spansight-demo \
+  --name dev-mac --start-ip-address "$(curl -fsS https://api.ipify.org)" --end-ip-address "$(curl -fsS https://api.ipify.org)"
 
 TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
 dotnet run -c Release --project src/SpanSight.Ingestion -- load \
@@ -97,7 +97,7 @@ az storage blob upload --account-name stspansightdemo --container-name '$web' \
 az storage blob upload --account-name stspansightdemo --container-name '$web' \
   --name tiles/manifest.json --file data/tiles/manifest.json --overwrite --auth-mode login
 
-az postgres flexible-server firewall-rule delete -g rg-spansight-demo -n psql-spansight-demo --rule-name dev-mac --yes
+az postgres flexible-server firewall-rule delete -g rg-spansight-demo -s psql-spansight-demo --name dev-mac --yes
 ```
 
 Then set the `VITE_TILES_URL` repo variable to the blob URL and re-run **Deploy** so the SPA switches from the GeoJSON fallback to vector tiles (FR-0.5 AC-2). Re-run with `run_e2e: true` for the full live smoke.
