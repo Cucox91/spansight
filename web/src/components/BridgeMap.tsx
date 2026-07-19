@@ -155,10 +155,11 @@ export default function BridgeMap() {
 function paintSpec(): maplibregl.CircleLayerSpecification['paint'] {
   return {
     'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 4.5, 10, 12],
-    // Good/Fair/Poor tokens from docs/DESIGN.md; Unknown falls back to muted.
+    // Good/Fair/Poor tokens from docs/DESIGN.md; Unknown falls back to muted. The API GeoJSON
+    // names the property conditionClass; the PMTiles pipeline ships it minified as cond.
     'circle-color': [
       'match',
-      ['get', 'conditionClass'],
+      ['coalesce', ['get', 'conditionClass'], ['get', 'cond']],
       'Good',
       '#2e7d32',
       'Fair',
