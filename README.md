@@ -42,7 +42,7 @@ The docs set ships with the product on purpose — process is part of the portfo
 
 ## How AI was used
 
-Openly, and under a written policy: **[docs/AI-USAGE.md](docs/AI-USAGE.md)**. The short version — AI (Claude) drafts implementation across the codebase; I review **every line** before merge with one bar: *if I couldn't rewrite it, I don't merge it*. Every architectural decision is mine and recorded in ADRs. PRs where AI wrote a meaningful share carry the `ai-assisted` label. To keep the mastery claim honest, each phase I rebuild one core component by hand from a blank file and keep a weekly AI-free coding rep.
+Openly, and under a written policy with a public change log: **[docs/AI-USAGE.md](docs/AI-USAGE.md)**. The short version — AI (Claude) implements the product under my direction; merges are gated by green CI (full test suite including Testcontainers integration against real PostGIS, lint, scans) plus AI self-review against the policy's hard rules. Every architectural decision is mine and recorded in ADRs; credentials, billing, and account actions never touch AI. PRs where AI wrote a meaningful share carry the `ai-assisted` label — since 2026-07-17 that is most implementation PRs, and the policy's change log records that shift plainly (v1.1 required line-by-line pre-merge review; v1.2 moved my deep review to a structured post-completion code study, where I work through the codebase until I can explain and rebuild any part of it).
 
 ## License & data
 
