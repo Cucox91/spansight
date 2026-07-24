@@ -26,7 +26,18 @@ param budgetContactEmail string
 @description('API image (ghcr.io/...); empty on infra-only deploys — the app deploys once an image exists.')
 param apiImage string = ''
 
+@description('Custom subdomain hostnames for the SPA (e.g. www.spansights.com). Bound on the SWA; the matching CNAMEs live at the registrar (GoDaddy — RUNBOOK §8). API + storage CORS allowlists extend automatically via spaOrigins.')
+param spaCustomDomains array = []
+
+@description('Apex hostname for the SPA (e.g. spansights.com) — dns-txt-token validation + A record to the SWA stableInboundIP (RUNBOOK §8). Empty = none.')
+param spaApexDomain string = ''
+
 var baseName = 'spansight'
+
+// Every origin the SPA is served from: default SWA hostname + custom subdomains + apex.
+var spaCustomOrigins = [for domain in spaCustomDomains: 'https://${domain}']
+var spaApexOrigins = spaApexDomain == '' ? [] : ['https://${spaApexDomain}']
+var spaOrigins = concat(['https://${staticWebApp.outputs.defaultHostname}'], spaCustomOrigins, spaApexOrigins)
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: 'rg-${baseName}-${env}'
@@ -77,6 +88,8 @@ module staticWebApp 'modules/static-web-app.bicep' = {
   params: {
     name: 'stapp-${baseName}-${env}'
     location: swaLocation
+    customDomains: spaCustomDomains
+    apexDomain: spaApexDomain
   }
 }
 
@@ -87,7 +100,7 @@ module storage 'modules/storage.bicep' = {
     // Storage account names: 3–24 chars, lowercase alphanumeric, globally unique.
     name: 'st${baseName}${env}'
     location: location
-    corsOrigin: 'https://${staticWebApp.outputs.defaultHostname}'
+    corsOrigins: spaOrigins
   }
 }
 
@@ -111,7 +124,7 @@ module containerApp 'modules/container-app.bicep' = if (apiImage != '') {
     image: apiImage
     postgresFqdn: postgres.outputs.fqdn
     appInsightsConnectionString: appInsights.outputs.connectionString
-    corsOrigin: 'https://${staticWebApp.outputs.defaultHostname}'
+    corsOrigins: spaOrigins
   }
 }
 
