@@ -14,3 +14,10 @@ param pgEntraAdminPrincipalName = 'raziel.arias1991_outlook.com#EXT#@razielarias
 // budget alert recipient (NFR-2) and the GHCR image for the API container.
 param budgetContactEmail = readEnvironmentVariable('BUDGET_CONTACT_EMAIL', '')
 param apiImage = readEnvironmentVariable('API_IMAGE', '')
+
+// Custom domain (2026-07-24, RUNBOOK §8): DNS at GoDaddy. www CNAMEs to the SWA
+// (cname-delegation — the CNAME must resolve before this deploys); the apex is a real SWA
+// hostname too (dns-txt-token + A record to stableInboundIP), so https://spansights.com
+// serves with its own cert. Canonical URL stays https://www.spansights.com.
+param spaCustomDomains = ['www.spansights.com']
+param spaApexDomain = 'spansights.com'

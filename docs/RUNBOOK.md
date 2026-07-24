@@ -1,6 +1,6 @@
 # SpanSight — Runbook
 
-v1.1 · 2026-07-19 · Release, operations, and data procedures for the `demo` environment (ADR-006-B). Companion to [SDLC.md](./SDLC.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md). v1.1 folds in everything the first live setup taught us (§7).
+v1.2 · 2026-07-24 · Release, operations, and data procedures for the `demo` environment (ADR-006-B). Companion to [SDLC.md](./SDLC.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md). v1.1 folds in everything the first live setup taught us (§7); v1.2 adds the custom domain (§8).
 
 Credential/billing steps are marked **[RAZIEL]** — they stay human under AI-USAGE v1.2 and are never executed by AI or stored in the repo.
 
@@ -151,3 +151,68 @@ Nine Deploy runs to first green; each failure was one layer deeper. Kept as the 
 | 9 | — | Green end to end; demo live |
 
 Post-green: national load required `Command Timeout=300` (§3); tile upload required `--auth-mode key` (§3); blob CORS for PMTiles range requests landed as Bicep (PR #13); deploy-on-main trigger flipped (PR #14). Permission classifier kept the role-escalation grant (`azure_pg_admin`) human-executed, consistent with AI-USAGE v1.2 boundaries.
+
+## 8. Custom domain — spansights.com (added 2026-07-24)
+
+Canonical URL: **https://www.spansights.com**; the apex `https://spansights.com` serves too, with its own cert. DNS stays at GoDaddy; the SWA hostname bindings and both CORS allowlists (API `Cors__Origins__N`, storage PMTiles rules) are declared in `infra/` — `spaCustomDomains` + `spaApexDomain` in `main.bicepparam` — never in the portal (hard rule 5).
+
+Two validation mechanics, hence the ordering below: **www** is `cname-delegation` (its CNAME must resolve publicly *before* the deploy, which blocks on it) · **apex** is `dns-txt-token` (the token doesn't exist until a deploy first registers the hostname, so its TXT record goes in *during* the deploy). GoDaddy has no ALIAS/ANAME, so the apex uses an A record to the SWA's `stableInboundIP` — single regional host rather than the global edge (MS's documented trade-off); accepted for a demo, and why `www` stays canonical. Free tier includes 2 custom domains — www + apex uses exactly the allowance. Do **not** use GoDaddy domain forwarding for the apex — it would fight the A record, and its forwarding host can't serve HTTPS.
+
+### 8.1 Before the deploy **[RAZIEL]**
+
+First make sure the CLI is on the SpanSight subscription — other projects' `az account set`/`az login` calls move it, and every command below then fails with `ResourceGroupNotFound` (bit us 2026-07-24):
+
+```bash
+az account show -o table            # wrong subscription? → az account list -o table && az account set --subscription "<id>"
+```
+
+Get the SWA's stable inbound IP:
+
+```bash
+az staticwebapp show -n stapp-spansight-demo -g rg-spansight-demo -o json | grep -i stableinbound
+```
+
+GoDaddy → My Products → `spansights.com` → **DNS** → add (and make sure Forwarding is OFF for this domain — it parks its own apex A records):
+
+| Type | Name | Value | TTL |
+|---|---|---|---|
+| CNAME | `www` | `kind-river-0d5c2f510.7.azurestaticapps.net` | default |
+| A | `@` | `<stableInboundIP from the command above>` | default |
+
+Verify the CNAME resolves before merging (the A record has no deadline):
+
+```bash
+dig +short www.spansights.com CNAME    # → kind-river-0d5c2f510.7.azurestaticapps.net.
+```
+
+### 8.2 Deploy + apex TXT **[RAZIEL]**
+
+Merge the PR (or Actions → **Deploy** → Run workflow). While the `static-web-app` deployment step is running/waiting, fetch the apex validation token and add it at GoDaddy:
+
+```bash
+az staticwebapp hostname show -n stapp-spansight-demo -g rg-spansight-demo \
+  --hostname spansights.com --query validationToken -o tsv
+```
+
+| Type | Name | Value | TTL |
+|---|---|---|---|
+| TXT | `@` | `<validationToken>` | default |
+
+Validation completes in-run if the TXT propagates within the deployment's wait; if the run times out first, leave the records in place and re-run **Deploy** — the token is stable and the re-run converges (Bicep is idempotent). Certificates for both hostnames issue automatically within ~15 min of validation.
+
+### 8.3 Verify
+
+```bash
+curl -sI https://www.spansights.com | head -1     # HTTP/2 200, valid cert
+curl -sI https://spansights.com | head -1         # HTTP/2 200, valid cert (apex)
+# API CORS carries both new origins (simple-request check):
+for o in https://www.spansights.com https://spansights.com; do
+  curl -sI -H "Origin: $o" \
+    https://ca-spansight-api-demo.wonderfulforest-bd8cc0ce.southcentralus.azurecontainerapps.io/api/stats/summary \
+    | grep -i access-control-allow-origin
+done
+```
+
+In the app on both hostnames: map renders from PMTiles (storage CORS), filters + KPIs load (API CORS), `/bridge/{state}/{id}` deep link and `/qa` work (SWA fallback rewrite). Dispatch **Deploy** with `run_e2e: true` for the full smoke if anything looks off.
+
+Failure modes: `static-web-app` step times out → www CNAME hadn't propagated (§8.1) or the apex TXT went in too late (§8.2 — re-run); cert "provisioning" → wait, it can lag validation by ~15 min; CORS errors on a new origin only → confirm the container app revision picked up `Cors__Origins__1/2` (env list in the portal's read-only revision view — env changes create a new revision automatically); apex serves but www doesn't (or vice versa) → check the corresponding record with `dig`, the two hostnames are independent bindings.

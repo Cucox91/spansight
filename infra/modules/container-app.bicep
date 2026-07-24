@@ -12,8 +12,11 @@ param postgresFqdn string
 @description('App Insights connection string (OTel exporter).')
 param appInsightsConnectionString string
 
-@description('Allowed CORS origin for the SPA (Static Web App hostname).')
-param corsOrigin string
+@description('Allowed CORS origins for the SPA (SWA default hostname + any custom domains).')
+param corsOrigins array
+
+// Program.cs binds Cors:Origins as string[] — emit one indexed env var per origin.
+var corsEnv = [for (origin, i) in corsOrigins: { name: 'Cors__Origins__${i}', value: origin }]
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -39,7 +42,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
+          env: concat([
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
             // Entra token auth: username is the ACA app name (the PG principal), no password.
             {
@@ -49,8 +52,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Database__UseEntraToken', value: 'true' }
             // Standard variable the Azure Monitor OTel distro reads (NFR-6)
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
-            { name: 'Cors__Origins__0', value: corsOrigin }
-          ]
+          ], corsEnv)
           probes: [
             {
               type: 'Liveness'

@@ -2,6 +2,8 @@
 
 A national bridge-inventory intelligence platform built on public [FHWA National Bridge Inventory](https://www.fhwa.dot.gov/bridge/nbi/ascii.cfm) data (~624k bridges): ingest → validate → explore on a map, with data quality treated as a feature, not a footnote.
 
+**Live demo:** [www.spansights.com](https://www.spansights.com)
+
 **Portfolio project by Raziel Arias** — built to demonstrate senior-level C#/.NET, React/TypeScript, and Azure engineering with a documented, disciplined SDLC. It displays published inventory values only; it is **not engineering advice** and has no affiliation with any Department of Transportation.
 
 ## What it does (Phase 0)
