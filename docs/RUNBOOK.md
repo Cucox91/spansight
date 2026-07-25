@@ -1,6 +1,6 @@
 # SpanSight — Runbook
 
-v1.2 · 2026-07-24 · Release, operations, and data procedures for the `demo` environment (ADR-006-B). Companion to [SDLC.md](./SDLC.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md). v1.1 folds in everything the first live setup taught us (§7); v1.2 adds the custom domain (§8).
+v1.3 · 2026-07-24 · Release, operations, and data procedures for the `demo` environment (ADR-006-B). Companion to [SDLC.md](./SDLC.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md). v1.1 folds in everything the first live setup taught us (§7); v1.2 adds the custom domain (§8); v1.3 adds the Phase 0.5 AI-flip procedure (§9).
 
 Credential/billing steps are marked **[RAZIEL]** — they stay human under AI-USAGE v1.2 and are never executed by AI or stored in the repo.
 
@@ -216,3 +216,65 @@ done
 In the app on both hostnames: map renders from PMTiles (storage CORS), filters + KPIs load (API CORS), `/bridge/{state}/{id}` deep link and `/qa` work (SWA fallback rewrite). Dispatch **Deploy** with `run_e2e: true` for the full smoke if anything looks off.
 
 Failure modes: `static-web-app` step times out → www CNAME hadn't propagated (§8.1) or the apex TXT went in too late (§8.2 — re-run); cert "provisioning" → wait, it can lag validation by ~15 min; CORS errors on a new origin only → confirm the container app revision picked up `Cors__Origins__1/2` (env list in the portal's read-only revision view — env changes create a new revision automatically); apex serves but www doesn't (or vice versa) → check the corresponding record with `dig`, the two hostnames are independent bindings.
+
+## 9. Enabling the AI assist — the Phase 0.5 gate (added 2026-07-24)
+
+FR-AI.1 (Ask the Map) is built dark: code, tests, and the SPA affordance all shipped in Phase 0; `/api/ai/query` answers 503 ProblemDetails until a provider is configured. This section is the flip. It runs in parallel with Phase 1 W1 and does not gate Phase 1 (IMPLEMENTATION-PLAN §10 W0).
+
+**The contract** (implemented by the `infra/ai-flip` wiring PR — a [CC] Claude Code task; this section is authoritative for names):
+
+| Piece | Name | Set by |
+|---|---|---|
+| GitHub Actions **secret** | `ANTHROPIC_API_KEY` | **[RAZIEL]** only |
+| GitHub Actions **variable** (the flip) | `AI_ENABLED` = `true` / `false` | **[RAZIEL]** |
+| Bicep params (from workflow env, like `API_IMAGE`) | `@secure()` `anthropicApiKey` · `aiEnabled` | `deploy.yml` passthrough |
+| ACA secret (declared in Bicep only when the key param is non-empty) | `anthropic-api-key` | Bicep |
+| Container env | `ANTHROPIC_API_KEY` (secretRef) · `Ai__Enabled` · `Ai__Provider=anthropic` · `Ai__Model=claude-haiku-4-5` (ADR-008 pin) | Bicep |
+
+Fail-closed by construction: flag off **or** key absent → the provider never registers and the endpoint stays on its dark 503 path (`Program.cs`). The key never exists in the repo, a prompt, or deployment history (`@secure()` params are not logged). Cost governors are already in the app: 200 requests/day budget trip, 512-token output cap, 24 h normalized-input cache, 10 req/min/IP rate limit — worst-case day on a Haiku-class model is pennies (target ≤$5/mo inside NFR-2, ADR-008 §4).
+
+### 9.1 Pre-requisite
+
+The `infra/ai-flip` PR is merged (it ships with the flag off — merging changes nothing live). It also adds `UserSecretsId` to `SpanSight.Api.csproj` for §9.3.
+
+### 9.2 Create the key **[RAZIEL]**
+
+Anthropic Console (personal account) → API keys → create a key named `spansight-demo`. Set a **monthly spend limit** (~$5) in the console's billing limits. Key goes in the password manager; it will only ever be pasted into `dotnet user-secrets` (§9.3) and the GitHub secret (§9.4).
+
+### 9.3 Local smoke first (recommended) **[RAZIEL]**
+
+```bash
+dotnet user-secrets set "Ai:Enabled" "true"                --project src/SpanSight.Api
+dotnet user-secrets set "Ai:Model" "claude-haiku-4-5"      --project src/SpanSight.Api
+dotnet user-secrets set "Ai:ApiKey" "<key>"                --project src/SpanSight.Api
+dotnet run --project src/SpanSight.Api   # then, in another shell:
+curl -s -X POST http://localhost:5194/api/ai/query -H 'Content-Type: application/json' \
+  -d '{"text":"poor truss bridges in florida built before 1970"}'
+```
+
+Expect 200 with `state: FL`, `conditions: ["Poor"]`, `typeGroups: ["Truss / Arch"]`, `yearBuiltMax: 1969` — the same rail values the browser smoke pinned against the stub. (`Ai:ApiKey` in user-secrets lives outside the repo tree by design.)
+
+### 9.4 Flip the cloud **[RAZIEL]**
+
+Repo → Settings → Secrets and variables → Actions: **secret** `ANTHROPIC_API_KEY` = the key · **variable** `AI_ENABLED` = `true`. Then Actions → **Deploy** → Run workflow (`run_e2e: true` recommended).
+
+### 9.5 Live-key smoke — the FR-AI.1 AC-6 gate item **[RAZIEL]**
+
+```bash
+API=https://ca-spansight-api-demo.wonderfulforest-bd8cc0ce.southcentralus.azurecontainerapps.io
+# 1. Translation (fresh):
+curl -s -X POST "$API/api/ai/query" -H 'Content-Type: application/json' \
+  -d '{"text":"poor truss bridges in florida built before 1970"}'
+# 2. Same body again → served from cache (visibly faster, same payload):
+# 3. Guardrail: a judgment request lands in `unsupported`, filters unaffected:
+curl -s -X POST "$API/api/ai/query" -H 'Content-Type: application/json' \
+  -d '{"text":"which bridges are unsafe to drive on?"}'
+```
+
+Then the real thing: **https://www.spansights.com** → Ask the Map → same phrase → rail, KPIs, map, and results move together (AC-2), interpretation line shows the applied values (AC-3).
+
+### 9.6 Close-out
+
+RTM FR-AI.1 → **Done** with this smoke as evidence + CLAUDE.md status line ([CC] task) · check the Anthropic console usage page after a few days (spend ≈ pennies; the 200/day budget and cache are doing their jobs) · Azure spend unchanged (no new resources).
+
+**Rollback:** set `AI_ENABLED` = `false` → run **Deploy** → endpoint back to its dark 503 path, SPA shows the built-in notice. Key compromise: revoke in the Anthropic console first, then rotate the GitHub secret.

@@ -1,6 +1,6 @@
 # SpanSight — National Bridge Asset Intelligence Platform
 
-**Software Requirements Specification** · v1.2 · Author: Raziel Arias · Date: 2026-07-18 (v1.1: 2026-07-17) · Status: For review — baselines on merge to `main`
+**Software Requirements Specification** · v1.3 · Author: Raziel Arias · Date: 2026-07-24 (v1.2: 2026-07-18 · v1.1: 2026-07-17) · Status: Baselined (gate 0)
 
 ---
 
@@ -21,7 +21,7 @@ Requirements follow the process defined in [SDLC.md](./SDLC.md) (rolling-wave el
 | ID stability | IDs are never renumbered or reused; a dropped requirement is marked *Withdrawn* in place |
 | Priority | MoSCoW, judged within the requirement's phase (a Phase-2 *Must* still waits for Phase 2) |
 | Verification | **Test** (automated) · **Demo** (scripted manual walkthrough) · **Inspection** (review of artifact/config) · **Analysis** (measurement/benchmark) |
-| Elaboration | Phase 0 requirements carry full acceptance criteria now; Phases 1–3 are scoped stubs, elaborated at the gate that opens them ([SDLC.md §3](./SDLC.md)) |
+| Elaboration | Phases 0, 0.5 (FR-AI.1), and 1 carry full acceptance criteria; Phases 2–3 are scoped stubs, elaborated at the gate that opens them ([SDLC.md §3](./SDLC.md)) |
 | Traceability | Every FR/NFR appears in [TRACEABILITY.md](./TRACEABILITY.md) mapping to design, implementation, and verification evidence |
 
 ### 1.2 References
@@ -73,7 +73,7 @@ Main success scenarios only; alternate/error flows are captured as acceptance cr
 
 ## 5. Functional Requirements (phased)
 
-Phase 0 requirements are fully elaborated (priority · verification · acceptance criteria). Phases 1–3 are **scoped stubs** — one-line commitments elaborated at the gate that opens each phase (SDLC.md §3); their IDs are stable now.
+Phase 0, 0.5 (FR-AI.1), and Phase 1 requirements are fully elaborated (priority · verification · acceptance criteria). Phases 2–3 are **scoped stubs** — one-line commitments elaborated at the gate that opens each phase (SDLC.md §3); their IDs are stable now.
 
 ### Phase 0 — Foundation & Map Explorer (MVP)
 
@@ -141,13 +141,47 @@ Builds only after the Phase 0 core demo runs with real data; `Ai:Enabled` stays 
 - **FR-AI.2 — Record narration** · Could · Drawer action that renders a bridge's already-displayed published values as a plain-English paragraph (template-framed, cached, disclaimer attached). *(ACs at build gate.)*
 - **FR-AI.3 — Coding-guide RAG** · Could · "What does Item 60 mean?" answered from the public FHWA Coding Guide/SNBI definitions with citations, retrieval via pgvector in the serving Postgres. *(ACs + embedding-provider trade study at build gate.)*
 
-### Phase 1 — Historical Analytics
+### Phase 1 — Historical Analytics *(elaborated 2026-07-24 at gate 0, v1.3)*
 
-- **FR-1.1** Ingest historical NBI files (1992–2025) into Parquet; DuckDB analytical layer. Full history stays out of the hosted Postgres to keep the serving DB small and cheap (NFR-2, ADR-005).
-- **FR-1.2** Condition trend views per bridge / county / state (Good/Fair/Poor over time).
-- **FR-1.3** Deterioration model: condition-rating transition probabilities (Markov-chain baseline) by structure type, material, and climate region; methodology and limitations documented.
-- **FR-1.4** Rankings and report cards: worst condition, high-traffic + poor-condition, county report card; CSV/PDF export.
-- **FR-1.5** Census TIGER/ACS enrichment: boundaries, population served.
+Standing guardrail for the phase (GR-6): every Phase 1 analytic is a **descriptive statistic of published ratings** — cohort-level history, never a prediction or assessment of any individual structure, never engineering judgment. Methodology and limitations ship with the features they describe.
+
+**FR-1.1 — Historical vintage ingestion (Parquet + DuckDB)** · Must · Verify: Test + Inspection
+Ingest historical NBI files (1992–2025) into Parquet; DuckDB analytical layer. Full history stays out of the hosted Postgres to keep the serving DB small and cheap (NFR-2, ADR-005).
+
+- AC-1 A `tools/` pipeline converts each annual NBI ASCII vintage (1992–2025) into one normalized Parquet file; per-vintage format quirks are handled in code (documented), and a catalog manifest records source file SHA-256, row counts, and conversion date per vintage.
+- AC-2 Row counts per vintage reconcile with the source files; rows that fail parsing land in a per-vintage reject file with reasons — itemized, never silently dropped.
+- AC-3 Hosted Postgres gains only aggregate tables (ADR-005); the Parquet set lives on the dev machine with a Blob cool-tier archive copy. No bulk historical data in git — per-vintage fixtures only (a few hundred rows, ≤3 vintages).
+- AC-4 The DuckDB layer reads the Parquet catalog directly; a documented `tools/` entry point reproduces any published aggregate from a clean checkout plus the Parquet set.
+
+**FR-1.2 — Condition trend views** · Must · Verify: Test + Demo
+Condition trend views per bridge / county / state (Good/Fair/Poor over time).
+
+- AC-1 A per-bridge condition history (year × Good/Fair/Poor, derived from published ratings by the same lowest-of-governing-components classifier as Phase 0) is computed offline and published as aggregates: per-bridge series plus county/state × year rollups.
+- AC-2 API endpoints expose the series; the detail drawer gains a condition sparkline; a trends view shows county/state Good/Fair/Poor shares over time.
+- AC-3 Golden tests verify the computed history for ≥3 hand-checked bridges across eras; rollups reconcile exactly with the per-bridge data they summarize.
+- AC-4 New aggregate queries hold the NFR-1 p95 target, verified by an EXPLAIN pass on the new tables.
+
+**FR-1.3 — Deterioration patterns (Markov-chain baseline)** · Must · Verify: Test + Inspection
+Condition-rating transition frequencies by structure type, material, and climate region; methodology and limitations documented.
+
+- AC-1 An offline DuckDB job computes year-over-year condition-rating transition frequencies from consecutive vintages, grouped by structure type group, material, and climate region (the public NOAA nine-region state mapping as a static lookup — no new data pipeline); outputs are transition matrices with sample sizes.
+- AC-2 `docs/METHODOLOGY-DETERIORATION.md` documents method, assumptions, and limitations, and states plainly: historical description of published ratings at cohort level, **not a prediction for any individual structure, not engineering judgment** (GR-6).
+- AC-3 The matrix math is unit-tested against small hand-computed fixtures; cells under a documented sample-size floor render as "insufficient data", never as a rate.
+- AC-4 UI presents cohort-level views only, with the methodology link and GR-6 disclaimer adjacent wherever matrices or rates appear.
+
+**FR-1.4 — Rankings & report cards** · Should · Verify: Test + Demo
+Worst condition, high-traffic + poor-condition, county report card; CSV export (PDF: Could).
+
+- AC-1 Ranking views (worst-condition cohorts; high-AADT + Poor) are computed from published values, with the sort/inclusion definition displayed alongside the results.
+- AC-2 A deep-linkable county report card aggregates counts, condition shares, trend, and population served (FR-1.5).
+- AC-3 Any ranking or report-card view exports to CSV (server-generated, rate-limited); golden-file tests verify export content against fixtures. PDF export is Could-priority.
+
+**FR-1.5 — Census TIGER/ACS enrichment** · Should · Verify: Test + Inspection
+Boundaries, population served.
+
+- AC-1 County boundaries (TIGER) and population (ACS) are staged by a documented pipeline recording vintage and license provenance (NFR-8).
+- AC-2 Join coverage (share of bridges matched to a county polygon) is measured and published on the QA page; misses are quarantined with reasons.
+- AC-3 Population-served figures cite the ACS vintage where displayed and stay within the GR-6 descriptive framing.
 
 ### Phase 2 — Real-Time & Operations
 
@@ -246,6 +280,7 @@ Mobile apps · inspection workflow or data entry · load-rating or any engineeri
 | v1.0 | 2026-07-17 | SRS baseline candidate: document conventions + references (§1.1–1.2); Phase 0 use cases (§4.1); priority, verification method, and acceptance criteria for all Phase 0 FRs (§5) and NFRs (§6); change control per SDLC.md; R-5 mitigation extended. No requirement renumbered; no scope change. |
 | v1.1 | 2026-07-17 | **Scope addition via change control:** Phase 0.5 AI-assist series FR-AI.1–3 (+ G-5, roadmap row, NFR-2 LLM-spend note) per ADR-008. Gated behind Phase 0 core demo; guardrails: GR-6 translation/description-only, schema-constrained outputs, cost caps. |
 | v1.2 | 2026-07-18 | FR-AI.1 acceptance criteria elaborated (AC-1…AC-6) at its build gate per the v1.1 placeholder — schema constrained to the rail predicate, deterministic interpretation, fail-closed guardrails, cost governors, stub-provider test strategy. No new scope; no requirement renumbered. |
+| v1.3 | 2026-07-24 | **Phase 1 slice elaborated at gate 0** per SDLC §3 rolling-wave: FR-1.1–1.5 gain priority, verification method, and acceptance criteria (incl. the GR-6 descriptive-statistics guardrail for FR-1.3 and the NOAA nine-region climate lookup right-sizing the stub's "climate region"). No new scope; no requirement renumbered; Phases 2–3 remain stubs. Status → Baselined at gate 0. |
 
 ---
 

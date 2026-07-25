@@ -1,6 +1,6 @@
 # SpanSight — Implementation Plan
 
-v1.1 · 2026-07-17 (v1.0: 2026-07-12) · Name locked: **SpanSight** (repo `spansight`, public from day 1 — OQ-2 closed). Companion to [REQUIREMENTS.md](./REQUIREMENTS.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [AI-USAGE.md](./AI-USAGE.md)
+v1.2 · 2026-07-24 (v1.1: 2026-07-17 · v1.0: 2026-07-12) · Name locked: **SpanSight** (repo `spansight`, public from day 1 — OQ-2 closed). Companion to [REQUIREMENTS.md](./REQUIREMENTS.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [AI-USAGE.md](./AI-USAGE.md) · v1.2 adds the Phase 0 gate note (§9) and the Phase 1 WBS (§10).
 
 Task tags per the AI policy: **[ME]** hand-written/decided by Raziel · **[AI]** delegated, line-by-line reviewed · **[ME+AI]** paired.
 
@@ -102,12 +102,12 @@ No staging tier — cost discipline; `local` + smoke tests carry that weight dur
 
 ## 6. Phases 1–3
 
-Rolling-wave: each phase gets its own WBS at its gate, same [ME]/[AI] tagging (novel cores hand-written: deterioration model math in P1, outbox consumer in P2). Standing carry-overs: Swiftly access status (R-4 fallback if delayed), SWA Standard +$9 decision when applications begin, dependency pin review.
+Rolling-wave: each phase gets its own WBS at its gate. *(The [ME]/[AI] tagging described in v1.0 is historical — under AI-USAGE v1.2, AI executes all tasks and the former hand-written-core obligation folds into the post-completion code study. Phase WBS tasks now carry **lane tags** instead: see §10.)* The Phase 1 WBS is **§10**. Standing carry-overs: ~~Swiftly access~~ (granted 2026-07-17, R-4 closed — key stays in the password manager until Phase 2), SWA Standard +$9 decision when applications begin, dependency pin review at each gate.
 
 ## 7. Definition of Done
 
-**PR:** builds · tests green · lint clean · [ME] reviewed every line (AI or not) · `ai-assisted` labeled when applicable · docs/ADR updated if behavior or decisions changed.
-**Phase:** exit criteria met · GR checklist pass · demo live from `main` · retro note (what to change next phase) appended to this doc.
+**PR** *(per AI-USAGE v1.2)*: builds · tests green · lint clean · AI self-review against the policy hard rules · `ai-assisted` labeled when applicable · docs/ADR updated if behavior or decisions changed. *(v1.0's "[ME] reviewed every line" is superseded — mastery is verified in the post-completion code study.)*
+**Phase:** exit criteria met · GR checklist pass · demo live from `main` · retro note (what to change next phase) appended to this doc (§9).
 
 ## 8. Kickoff checklist (first session)
 
@@ -115,6 +115,77 @@ Rolling-wave: each phase gets its own WBS at its gate, same [ME]/[AI] tagging (n
 2. Install toolchain (§1) · `az login` · create budget + alert.
 3. Request Swiftly API access.
 4. [AI] scaffold per Week 1 · [ME] review · first PR merged with CI green.
+
+## 9. Phase gate log
+
+### Gate 0 — Phase 0 close · 2026-07-24 · **PASS** (waivers + sign-off items recorded)
+
+Demo live at **https://www.spansights.com** (+ apex, both with valid certs; API + storage CORS verified from all three origins). Checklist per SDLC §3:
+
+| # | Gate item | Outcome |
+|---|---|---|
+| 1 | Requirements met | FR-0.1–0.6 **Done** in the RTM with linked evidence. One waiver: FR-0.6 AC-2's container-scan CI job deferred to P1-W1 (NuGet audit already fails builds on known-vulnerable packages). |
+| 2 | NFR spot-checks | NFR-1 ✓ (EXPLAIN 0.9–31 ms at 741k; smooth live) · NFR-2 ✓ alert armed by Bicep (spend figure: [RAZIEL] sign-off below) · NFR-3 ✓ (idempotency tests + the real 2026-07-19 mid-load kill converging on rerun) · NFR-4 ✓ with the scan waiver · NFR-5 **waiver** — coverage is exercised but unmeasured in CI; report + ≥70% gate is a P1-W1 task · NFR-6 ✓ P0 scope (API→DB traces in App Insights; browser leg = FR-2.4) · NFR-7 ✓ (axe in CI + live; keyboard walkthrough ships with the demo script, P1-W1) · NFR-8 ✓ (footer + README licenses). |
+| 3 | Ground rules | GR-1…GR-7 checklist **pass** (repo + data-source inspection: externals remain FHWA/BTS/Census/NOAA/Miami-Dade only; personal accounts/hardware; portfolio-only posture; disclaimer footer live on all origins; GR-7 conduct = standing [RAZIEL] self-check). |
+| 4 | Docs current | SRS → v1.3 (Phase 1 slice elaborated) · RTM → v1.1 (close-out + Phase 1 rows) · README "How AI was used" rewritten to v1.2 policy (was stale v1.1 language) · CLAUDE.md status refreshed · this retro. No new ADRs required (custom-domain mechanics live in RUNBOOK §8 + Bicep comments — below the surprise bar). **Exception:** TEST-PLAN.md (planned Week 2) never authored → P1-W1 task; testing practice itself is real and CI-enforced. |
+| 5 | Demo live | ✓ from `main`, both hostnames, full live Playwright + axe green (2026-07-19); domain cutover re-verified 2026-07-24. |
+| 6 | Budget | Alert armed ✓ (deploys with every run). Expected ~$18–21/mo Phases 0–1. Spend figure at gate: **[RAZIEL] record from portal** (sign-off item). |
+| 7 | Next-phase WBS | §10 drafted; approved when this PR merges. Entry criteria for Phase 1 = this gate + §10. |
+
+**[RAZIEL] sign-off items (non-blocking, record here when done):** portal spend figure for June–July · one App Insights request-trace spot-check (NFR-6) · confirm GitHub secret-push protection is on for the repo (NFR-4).
+
+**Retro — what to change for Phase 1:**
+
+1. **CI must see what the demo runs.** Both tiles-mode bugs (PRs #15/#16) escaped because CI's e2e runs the GeoJSON fallback. Add a tiles-mode e2e variant (tiny fixture-built PMTiles checked in) — P1 backlog, Claude Code lane.
+2. **Don't claim what CI doesn't measure.** The ≥70% coverage figure lived in docs since Week 2 while CI never reported it. Land the coverage report before the number appears anywhere again.
+3. **Close RTM rows in the delivering PR, not at the gate.** FR-0.5/0.6 shipped 07-19 but their rows sat "In progress" for five days. The maintenance rule already says this; follow it.
+4. **Runbook-first held up.** Nine deploy runs each failed one layer deeper, and writing RUNBOOK §7/§8 *as* things ran made the fixes reusable (the domain cutover reused half of them). Keep writing ops docs in the same PR as the change.
+5. **Lane discipline (standing, per Raziel 2026-07-24):** Cowork authors docs, plans, and gate artifacts; implementation tasks route to Claude Code explicitly. §10 tags every task with its lane so nothing is ambiguous.
+
+**Phase 0.5 status at gate:** FR-AI.1 built dark, all tests green; cloud wiring is a queued Claude Code task; the flip + live-key smoke are [RAZIEL] steps in RUNBOOK §9. Runs in parallel with P1-W1 — it does not gate Phase 1.
+
+## 10. Phase 1 work breakdown (roadmap weeks 7–12)
+
+**Lane tags:** **[CC]** = Claude Code session (implementation in-repo) · **[CW]** = Cowork session (docs/planning artifacts, by PR) · **[RAZIEL]** = human-only (credentials, billing, account actions, sign-offs). AI executes [CC]/[CW] per AI-USAGE v1.2; every task lands by PR with green CI.
+
+**Environment:** Phase 1 runs on the **Mac** (decision 2026-07-24); the Windows migration ([bootstrap delivered 07-22]) is deferred to the P1→P2 seam, where it gets a go/no-go decision. All heavy data work stays local per ADR-005; **no new Azure resources this phase** (aggregates live in the existing PG; Parquet archive → existing Blob, cool tier).
+
+### W0 (parallel with W1) — Phase 0.5 flip *(does not gate Phase 1)*
+- [CC] `infra/ai-flip` PR: `UserSecretsId` on the API project, ACA secret + `Ai__*` env wiring in Bicep, `deploy.yml` secret/variable passthrough — contract in RUNBOOK §9; ships dark (flag still off).
+- [RAZIEL] RUNBOOK §9 steps: Anthropic key (spend-capped) → GitHub secret, `AI_ENABLED` variable, deploy dispatch, live-key smoke on www.spansights.com.
+- [CC] On green smoke: RTM FR-AI.1 → Done; CLAUDE.md status line.
+
+### W1 (wk 7) — Carry-overs + vintage foundations
+- [CW] `docs/TEST-PLAN.md` — formalize the existing strategy (xUnit + Testcontainers + Playwright/axe + live smoke), coverage policy, tiles-mode gap plan (gate 0 exception close-out).
+- [CW] Demo script (10-min walkthrough, G-4) including the NFR-7 keyboard pass.
+- [CC] Coverage report + ≥70% threshold on parser/API core in `ci.yml` (NFR-5 waiver close).
+- [CC] Container-scan job (e.g. Trivy) on the built API image (FR-0.6 AC-2 waiver close).
+- [CC] FR-1.1 start: vintage download/convert tooling + normalized Parquet schema + catalog manifest; fixtures for ≥3 eras. [RAZIEL] runs the bulk 1992–2025 download locally (multi-GB, stays out of git).
+- **Exit:** waivers closed in CI · ≥3 vintages converting clean with reconciliation.
+
+### W2 (wk 8) — FR-1.1 complete + FR-1.5 staging
+- [CC] All 34 vintages → Parquet; per-vintage row-count reconciliation report; rejects itemized; Blob cool-tier archive script; DuckDB catalog entry point (`tools/`).
+- [CC] FR-1.5: TIGER county boundaries + ACS population staging with provenance (vintage + license recorded).
+- **Exit:** FR-1.1 ACs met · catalog reproducible from clean checkout · join keys ready.
+
+### W3 (wk 9) — FR-1.2 condition trends
+- [CC] DuckDB trend job (per-bridge year × G/F/P via the Phase 0 classifier) → aggregate tables + EF migration; API endpoints + tests; drawer sparkline + trends view; EXPLAIN pass (NFR-1).
+- **Exit:** FR-1.2 ACs met · golden tests green vs ≥3 hand-checked bridges.
+
+### W4 (wk 10) — FR-1.3 deterioration patterns
+- [CC] Transition-frequency job (type group × material × NOAA climate region) with sample-size floors; unit tests vs hand-computed fixtures; cohort-level UI with adjacent disclaimer.
+- [CW] `docs/METHODOLOGY-DETERIORATION.md` (assumptions, limitations, GR-6 framing) — reviewed with the feature PR.
+- **Exit:** FR-1.3 ACs met · methodology doc merged with the feature, not after it.
+
+### W5 (wk 11) — FR-1.4 + FR-1.5 surface
+- [CC] Rankings + deep-linkable county report card; CSV export with golden-file tests (PDF stays Could); join-coverage metric on the QA page; population-served figures with ACS citation.
+- **Exit:** FR-1.4/1.5 ACs met.
+
+### W6 (wk 12) — Hardening + gate 1
+- [CC] Perf/EXPLAIN pass over all new query shapes; axe over new UI; tiles-mode e2e variant if the backlog allows.
+- [CW] RTM close-out in the delivering PRs (retro lesson 3) · gate 1 retro · SRS Phase 2 slice · Phase 2 WBS (§11).
+- [RAZIEL] Spend check · gate sign-off · **Windows migration go/no-go for Phase 2**.
+- **Exit:** gate 1 checklist pass · Phase 2 entry criteria set.
 
 ---
 
