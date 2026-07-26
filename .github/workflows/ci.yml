@@ -130,6 +130,13 @@ jobs:
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load --file src/tests/fixtures/nbi_sample_2025.csv --snapshot-year 2025
+      # FR-1.2: the hand-written trend fixture covers three of those same Miami-Dade structures, so
+      # the drawer sparkline and the trends view have real rows to render rather than only their
+      # empty states.
+      - name: Load condition-history aggregates (FR-1.2)
+        run: >
+          dotnet run --project src/SpanSight.Ingestion --configuration Release --
+          load-trends --file src/tests/fixtures/trends
       - name: Start API
         run: |
           dotnet run --project src/SpanSight.Api --configuration Release --launch-profile http &

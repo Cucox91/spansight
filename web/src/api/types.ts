@@ -35,6 +35,8 @@ export interface ConditionRating {
 export interface BridgeDetail {
   id: string
   state: string
+  /** 2-digit state FIPS — prefix of the county FIPS the trends view takes. */
+  stateFips: string
   stateName: string
   structureNumber: string
   recordType: string
@@ -60,6 +62,59 @@ export interface BridgeDetail {
   conditionClass: ConditionClass
   sourceFormat: string
   snapshotYear: number
+}
+
+/** FR-1.2 — which offline job produced the figures on screen. */
+export interface TrendProvenance {
+  jobRunId: string
+  catalogSha256: string
+  publishedUtc: string | null
+}
+
+export interface ConditionPoint {
+  year: number
+  lowestRating: number | null
+  conditionClass: ConditionClass
+}
+
+/**
+ * A structure's published condition history. `points` holds only the years FHWA published this
+ * structure — a gap in first..last means no published record, never an estimate (GR-6).
+ */
+export interface BridgeHistory {
+  id: string
+  state: string
+  structureNumber: string
+  firstYear: number
+  lastYear: number
+  observedYears: number
+  points: ConditionPoint[]
+  method: string
+  provenance: TrendProvenance
+}
+
+export interface TrendPoint {
+  year: number
+  total: number
+  good: number
+  fair: number
+  poor: number
+  unknown: number
+  goodShare: number | null
+  fairShare: number | null
+  poorShare: number | null
+  unknownShare: number | null
+}
+
+export interface TrendSeries {
+  level: 'State' | 'County'
+  fips: string
+  name: string
+  fromYear: number
+  toYear: number
+  points: TrendPoint[]
+  method: string
+  provenance: TrendProvenance | null
 }
 
 export interface StatsSummary {
