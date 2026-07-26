@@ -1,6 +1,8 @@
 using SpanSight.Core.Domain;
 using SpanSight.Core.Domain.Lookups;
 
+using StateFipsLookup = SpanSight.Core.Domain.Lookups.StateFips;
+
 namespace SpanSight.Api;
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount)
@@ -46,6 +48,8 @@ public sealed record ConditionRatingDto(string? Code, string Text);
 public sealed record BridgeDetailDto(
     string Id,
     string State,
+    /// <summary>2-digit state FIPS — the key half of the county FIPS the trends view needs (FR-1.2).</summary>
+    string StateFips,
     string StateName,
     string StructureNumber,
     string RecordType,
@@ -74,10 +78,13 @@ public sealed record BridgeDetailDto(
 {
     public static BridgeDetailDto From(Bridge b, int currentYear)
     {
-        var state = StateFips.ByFips[b.StateCode];
+        // The StateFips *property* above shadows the StateFips lookup class inside this record, so
+        // the lookup is reached through its alias here.
+        var state = StateFipsLookup.ByFips[b.StateCode];
         return new BridgeDetailDto(
             $"{state.Abbreviation}-{b.StructureNumber}",
             state.Abbreviation,
+            state.Fips,
             state.Name,
             b.StructureNumber,
             b.RecordType,
@@ -105,6 +112,59 @@ public sealed record BridgeDetailDto(
             b.SnapshotYear);
     }
 }
+
+/// <summary>One year of a bridge's published condition history (FR-1.2 AC-2).</summary>
+public sealed record ConditionPointDto(int Year, int? LowestRating, string ConditionClass);
+
+/// <summary>
+/// A structure's condition history as published, 1992–2025 (FR-1.2 AC-2).
+/// <para>
+/// <see cref="Points"/> holds only the years FHWA actually published this structure, so a gap in
+/// the span shows up as a missing year rather than an invented value — <see cref="ObservedYears"/>
+/// against the <see cref="FirstYear"/>–<see cref="LastYear"/> span says how much is missing. This
+/// is a record of published ratings, not an assessment or a projection (GR-6).
+/// </para>
+/// </summary>
+public sealed record BridgeHistoryDto(
+    string Id,
+    string State,
+    string StructureNumber,
+    int FirstYear,
+    int LastYear,
+    int ObservedYears,
+    IReadOnlyList<ConditionPointDto> Points,
+    string Method,
+    TrendProvenanceDto Provenance);
+
+/// <summary>Which offline job produced the figures, so any number on screen is traceable (NFR-3).</summary>
+public sealed record TrendProvenanceDto(string JobRunId, string CatalogSha256, DateTimeOffset? PublishedUtc);
+
+/// <summary>Good/Fair/Poor counts and shares for one area in one year (FR-1.2 AC-2).</summary>
+public sealed record TrendPointDto(
+    int Year,
+    int Total,
+    int Good,
+    int Fair,
+    int Poor,
+    int Unknown,
+    double? GoodShare,
+    double? FairShare,
+    double? PoorShare,
+    double? UnknownShare);
+
+/// <summary>
+/// County or state condition shares over time (FR-1.2 AC-2). Shares are computed from the stored
+/// counts on read, so the two can never disagree; a year with no rows is absent rather than zero.
+/// </summary>
+public sealed record TrendSeriesDto(
+    string Level,
+    string Fips,
+    string Name,
+    int FromYear,
+    int ToYear,
+    IReadOnlyList<TrendPointDto> Points,
+    string Method,
+    TrendProvenanceDto? Provenance);
 
 public sealed record StatsSummaryDto(
     int Total,
