@@ -1,0 +1,21 @@
+{
+  "_about": [
+    "Accepted npm audit findings for web/, read by tools/npm-audit-gate.py.",
+    "An entry suppresses exactly one advisory ID and nothing else — a new advisory on the",
+    "same package still fails the build. Every entry carries a reason and a review_by date,",
+    "and the gate FAILS once review_by has passed, so an exception cannot quietly become",
+    "permanent. Adding an entry is a security decision (NFR-4): record why the vulnerable",
+    "code path is not reachable, not merely that the fix is inconvenient."
+  ],
+  "accepted": [
+    {
+      "advisory": "GHSA-qwww-vcr4-c8h2",
+      "package": "react-router",
+      "severity": "high",
+      "accepted_on": "2026-07-25",
+      "review_by": "2026-10-31",
+      "reason": "RSC-mode CSRF bypass: an action can run before the framework returns 400. SpanSight's SPA uses react-router in client-side mode only — BrowserRouter with Routes/Route, plus useNavigate/useParams/NavLink. It declares no RSC route modules, no server actions and no react-router server runtime, and the SPA is served as static files by Azure Static Web Apps against a separate .NET API, so the vulnerable request path does not exist in this deployment.",
+      "fix": "Upgrade react-router-dom to >=8.3.0. No 7.x patch exists (7.x ends at 7.18.1), so this is a major-version migration: tracked separately, and it needs the Playwright + axe suites re-run before merge."
+    }
+  ]
+}
