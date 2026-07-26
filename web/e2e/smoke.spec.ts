@@ -185,6 +185,101 @@ async function findBridgeWithoutHistory(
   return null
 }
 
+/**
+ * FR-1.3 — cohort transition patterns. The fixture aggregates
+ * (src/tests/fixtures/deterioration-aggregates) sit deliberately at 49, 50 and 51 transitions per
+ * row, so both sides of the n >= 50 sample-size floor are reachable here.
+ */
+test.describe('deterioration patterns (FR-1.3)', () => {
+  const cohort = 'typeGroup=Girder+%2F+Stringer&materialGroup=Steel&region=Northeast'
+
+  test('the matrix is deep-linkable and shows counts with sample sizes', async ({ page }) => {
+    await page.goto(`/patterns?component=Deck&${cohort}`)
+
+    const region = page.getByRole('region', { name: /Girder \/ Stringer · Steel · Northeast, Deck/ })
+    await expect(region).toBeVisible({ timeout: 20_000 })
+
+    // Sample sizes are always visible (AC-1): the three fixture rows, by their totals.
+    const table = region.getByRole('table')
+    await expect(table).toContainText('51')
+    await expect(table).toContainText('50')
+    await expect(table).toContainText('49')
+
+    // An above-floor row publishes rates.
+    await expect(table).toContainText('80.0%')
+    await expect(table).toContainText('20.0%')
+  })
+
+  test('rows under the sample-size floor say "insufficient data" and show no rate (AC-3)', async ({
+    page,
+  }) => {
+    await page.goto(`/patterns?component=Deck&${cohort}`)
+    const table = page.getByRole('region', { name: /Deck/ }).getByRole('table')
+    await expect(table).toBeVisible({ timeout: 20_000 })
+
+    // Rows are addressed by their from-rating, not by their text: "insufficient data (n < 50)"
+    // itself contains "50", so a text filter matches the very rows it is meant to exclude.
+    // Fixture: from-rating 6 holds 49 transitions, from-rating 7 holds exactly 50.
+    const suppressed = table.locator('tr[data-from-rating="6"]')
+    await expect(suppressed).toHaveClass(/insufficient/)
+    await expect(suppressed).toContainText('49')
+    await expect(suppressed).toContainText('insufficient data')
+
+    // ...and not one of its ten cells carries a percentage.
+    await expect(suppressed.locator('td.cell')).toHaveCount(10)
+    await expect(suppressed).not.toContainText('%')
+
+    // Counts survive suppression — the floor removes the rate, never the evidence.
+    await expect(suppressed).toContainText('45')
+
+    // The row of exactly 50 is on the floor, so it publishes: the boundary is >=, not >.
+    const onTheFloor = table.locator('tr[data-from-rating="7"]')
+    await expect(onTheFloor).not.toHaveClass(/insufficient/)
+    await expect(onTheFloor).toContainText('80.0%')
+  })
+
+  test('every matrix carries the methodology link, the cadence caveat and the GR-6 framing (AC-4)', async ({
+    page,
+  }) => {
+    await page.goto(`/patterns?component=Deck&${cohort}`)
+    const region = page.getByRole('region', { name: /Deck/ })
+    await expect(region).toBeVisible({ timeout: 20_000 })
+
+    await expect(region).toContainText('not engineering advice')
+    await expect(region).toContainText('not a prediction')
+    await expect(region).toContainText('24-month')
+    await expect(
+      region.getByRole('link', { name: /Read the full methodology/ }),
+    ).toHaveAttribute('href', /METHODOLOGY-DETERIORATION\.md$/)
+
+    // The site-wide disclaimer footer is still here too (GR-6).
+    await expect(page.getByText('not engineering advice').first()).toBeVisible()
+  })
+
+  test('changing the cohort updates the URL so the view stays shareable', async ({ page }) => {
+    await page.goto('/patterns?component=Deck')
+    await expect(page.getByRole('region', { name: /All bridges/ })).toBeVisible({ timeout: 20_000 })
+
+    await page.getByLabel('Component').selectOption('Culvert')
+    await expect(page).toHaveURL(/component=Culvert/)
+    await expect(page.getByRole('region', { name: /Culvert/ })).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('no per-structure deterioration surface exists anywhere in the view', async ({ page }) => {
+    await page.goto(`/patterns?component=Deck&${cohort}`)
+    await expect(page.getByRole('region', { name: /Deck/ })).toBeVisible({ timeout: 20_000 })
+
+    // Cohort level only (methodology §7): a structure number must not appear on this page, and the
+    // copy must not promise anything about the future.
+    const body = (await page.locator('body').innerText()).toLowerCase()
+    for (const forbidden of ['structure number', 'forecast', 'projected', 'remaining life']) {
+      expect(body).not.toContain(forbidden)
+    }
+    // "prediction" may appear only inside the disclaimer that denies it.
+    expect(body.split('prediction').length - 1).toBe(body.split('not a prediction').length - 1)
+  })
+})
+
 test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
   const severe = (violations: Array<{ impact?: string | null }>) =>
     violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -210,6 +305,15 @@ test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
     await expect(page.getByRole('region', { name: /Condition over time/ })).toBeVisible({
       timeout: 20_000,
     })
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(severe(results.violations)).toEqual([])
+  })
+
+  test('patterns view has no serious/critical violations (FR-1.3)', async ({ page }) => {
+    await page.goto(
+      '/patterns?component=Deck&typeGroup=Girder+%2F+Stringer&materialGroup=Steel&region=Northeast',
+    )
+    await expect(page.getByRole('region', { name: /Deck/ })).toBeVisible({ timeout: 20_000 })
     const results = await new AxeBuilder({ page }).analyze()
     expect(severe(results.violations)).toEqual([])
   })
