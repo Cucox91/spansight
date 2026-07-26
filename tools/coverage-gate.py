@@ -43,6 +43,7 @@ GATE_SCOPE = [
     ("src/SpanSight.Core/Ingestion/", "Core — NBI parsing + row validation"),
     ("src/SpanSight.Core/Geo/", "Core — DMS to WGS84 conversion"),
     ("src/SpanSight.Core/Domain/", "Core — condition classification + NBI lookups"),
+    ("src/SpanSight.Core/Analytics/", "Core — condition series encoding"),
     ("src/SpanSight.Core/Filtering/", "Core — shared filter predicate"),
     ("src/SpanSight.Ingestion/", "Ingestion — load pipeline + CLI"),
     ("src/SpanSight.Api/Querying/", "API — query builder"),

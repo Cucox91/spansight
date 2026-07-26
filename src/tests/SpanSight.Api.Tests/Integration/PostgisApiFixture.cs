@@ -32,6 +32,9 @@ public sealed class PostgisApiFixture : IAsyncLifetime
 
     public LoadSummary SeedSummary { get; private set; } = null!;
 
+    /// <summary>FR-1.2 — the hand-written trend fixture, loaded through the real trend pipeline.</summary>
+    public TrendLoadSummary TrendSeedSummary { get; private set; } = null!;
+
     public HttpClient Client { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -40,6 +43,7 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         ConnectionString = _postgres.GetConnectionString();
 
         SeedSummary = await LoadFixtureAsync(force: false);
+        TrendSeedSummary = await LoadTrendsAsync(force: false);
 
         _factory = new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(builder =>
         {
@@ -66,6 +70,25 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         var fixture = Path.Combine(AppContext.BaseDirectory, "fixtures", "nbi_sample_2025.csv");
         return await pipeline.RunAsync(fixture, snapshotYear: 2025, dryRun: false, force: force, limit: null);
     }
+
+    /// <summary>
+    /// Publishes the committed trend fixture through the production loader (FR-1.2), so the API
+    /// tests read rows that went through the same upsert and convergence path as a real publish.
+    /// </summary>
+    public async Task<TrendLoadSummary> LoadTrendsAsync(bool force, string? directory = null)
+    {
+        await using var db = NewDbContext();
+        var pipeline = new TrendLoadPipeline(db, NullLogger<TrendLoadPipeline>.Instance);
+        return await pipeline.RunAsync(
+            directory ?? Path.Combine(AppContext.BaseDirectory, "fixtures", "trends"),
+            dryRun: false,
+            force: force);
+    }
+
+    public SpanSightDbContext NewDbContext() => new(
+        new DbContextOptionsBuilder<SpanSightDbContext>()
+            .UseNpgsql(ConnectionString, o => o.UseNetTopologySuite())
+            .Options);
 
     public async Task<int> CountBridgesAsync()
     {

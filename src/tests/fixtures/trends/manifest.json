@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "runId": "trends-fixture-0001",
+  "catalogSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "source": "src/tests/fixtures/trends (hand-written)",
+  "firstYear": 2020,
+  "lastYear": 2025,
+  "vintages": 6,
+  "bridges": 3,
+  "observations": 14,
+  "bridgesWithGaps": 1,
+  "rollupRows": 12,
+  "counties": 1,
+  "states": 1
+}

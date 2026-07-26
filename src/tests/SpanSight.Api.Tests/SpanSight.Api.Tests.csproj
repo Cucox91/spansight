@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Content Include="..\fixtures\nbi_sample_2025.csv" Link="fixtures\nbi_sample_2025.csv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\trends\*" LinkBase="fixtures\trends" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
