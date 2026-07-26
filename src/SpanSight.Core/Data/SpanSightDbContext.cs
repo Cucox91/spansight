@@ -28,6 +28,12 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
 
     public DbSet<ConditionRollup> ConditionRollups => Set<ConditionRollup>();
 
+    public DbSet<DeteriorationRun> DeteriorationRuns => Set<DeteriorationRun>();
+
+    public DbSet<DeteriorationMatrixRow> DeteriorationMatrixRows => Set<DeteriorationMatrixRow>();
+
+    public DbSet<DeteriorationMatrixCell> DeteriorationMatrixCells => Set<DeteriorationMatrixCell>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("postgis");
@@ -132,6 +138,52 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
             // range is a scan of contiguous index tuples rather than a filter.
             entity.HasIndex(r => new { r.Level, r.Fips, r.VintageYear }).IsUnique();
             entity.HasIndex(r => r.TrendRunId);
+        });
+
+        // FR-1.3 — the deterioration matrices. A separate run table from FR-1.2 on purpose: the two
+        // jobs are published and rolled back independently (RUNBOOK §10.3/§10.4).
+        modelBuilder.Entity<DeteriorationRun>(entity =>
+        {
+            entity.ToTable("deterioration_run", "analytics");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.JobRunId).HasMaxLength(64);
+            entity.Property(r => r.CatalogSha256).HasMaxLength(64);
+            entity.Property(r => r.MethodologyVersion).HasMaxLength(16);
+            entity.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(r => r.Error).HasMaxLength(2048);
+            entity.HasIndex(r => r.JobRunId).IsUnique();
+        });
+
+        modelBuilder.Entity<DeteriorationMatrixRow>(entity =>
+        {
+            entity.ToTable("deterioration_matrix_row", "analytics");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Component).HasConversion<string>().HasMaxLength(16);
+            entity.Property(r => r.TypeGroup).HasMaxLength(24);
+            entity.Property(r => r.MaterialGroup).HasMaxLength(32);
+            entity.Property(r => r.Region).HasMaxLength(32);
+            entity.HasOne<DeteriorationRun>().WithMany().HasForeignKey(r => r.DeteriorationRunId);
+
+            // The API's only shape: one cohort's whole matrix for one component — ten rows read by
+            // the leading four key columns, so the from-rating trails the key.
+            entity.HasIndex(r => new { r.Component, r.TypeGroup, r.MaterialGroup, r.Region, r.FromRating })
+                .IsUnique();
+            entity.HasIndex(r => r.DeteriorationRunId);
+        });
+
+        modelBuilder.Entity<DeteriorationMatrixCell>(entity =>
+        {
+            entity.ToTable("deterioration_matrix_cell", "analytics");
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Component).HasConversion<string>().HasMaxLength(16);
+            entity.Property(c => c.TypeGroup).HasMaxLength(24);
+            entity.Property(c => c.MaterialGroup).HasMaxLength(32);
+            entity.Property(c => c.Region).HasMaxLength(32);
+            entity.HasOne<DeteriorationRun>().WithMany().HasForeignKey(c => c.DeteriorationRunId);
+
+            entity.HasIndex(c => new { c.Component, c.TypeGroup, c.MaterialGroup, c.Region, c.FromRating, c.ToRating })
+                .IsUnique();
+            entity.HasIndex(c => c.DeteriorationRunId);
         });
 
         // Snake-case column names so hand-written SQL (staging merge, tile export, EXPLAIN

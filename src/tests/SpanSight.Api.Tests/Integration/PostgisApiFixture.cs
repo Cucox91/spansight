@@ -35,6 +35,9 @@ public sealed class PostgisApiFixture : IAsyncLifetime
     /// <summary>FR-1.2 — the hand-written trend fixture, loaded through the real trend pipeline.</summary>
     public TrendLoadSummary TrendSeedSummary { get; private set; } = null!;
 
+    /// <summary>FR-1.3 — the hand-written matrix fixture, loaded through the real deterioration pipeline.</summary>
+    public DeteriorationLoadSummary DeteriorationSeedSummary { get; private set; } = null!;
+
     public HttpClient Client { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -44,6 +47,7 @@ public sealed class PostgisApiFixture : IAsyncLifetime
 
         SeedSummary = await LoadFixtureAsync(force: false);
         TrendSeedSummary = await LoadTrendsAsync(force: false);
+        DeteriorationSeedSummary = await LoadDeteriorationAsync(force: false);
 
         _factory = new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(builder =>
         {
@@ -81,6 +85,20 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         var pipeline = new TrendLoadPipeline(db, NullLogger<TrendLoadPipeline>.Instance);
         return await pipeline.RunAsync(
             directory ?? Path.Combine(AppContext.BaseDirectory, "fixtures", "trends"),
+            dryRun: false,
+            force: force);
+    }
+
+    /// <summary>
+    /// Publishes the committed matrix fixture through the production loader (FR-1.3), so the API tests
+    /// read rows that went through the same upsert and convergence path as a real publish.
+    /// </summary>
+    public async Task<DeteriorationLoadSummary> LoadDeteriorationAsync(bool force, string? directory = null)
+    {
+        await using var db = NewDbContext();
+        var pipeline = new DeteriorationLoadPipeline(db, NullLogger<DeteriorationLoadPipeline>.Instance);
+        return await pipeline.RunAsync(
+            directory ?? Path.Combine(AppContext.BaseDirectory, "fixtures", "deterioration-aggregates"),
             dryRun: false,
             force: force);
     }

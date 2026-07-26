@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -13,9 +14,11 @@ using SpanSight.Core.Data;
 namespace SpanSight.Core.Data.Migrations
 {
     [DbContext(typeof(SpanSightDbContext))]
-    partial class SpanSightDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726214936_AnalyticsDeteriorationMatrices")]
+    partial class AnalyticsDeteriorationMatrices
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

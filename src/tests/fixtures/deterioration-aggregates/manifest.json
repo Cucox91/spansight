@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "runId": "deterioration-fixture-0001",
+  "catalogSha256": "handwritten",
+  "source": "src/tests/fixtures/deterioration-aggregates/README.md",
+  "methodologyVersion": "v1.1",
+  "sampleFloor": 50,
+  "firstYear": 2020,
+  "lastYear": 2023,
+  "yearPairs": 3,
+  "structurePairs": 160,
+  "componentPairs": 160,
+  "cohorts": 2,
+  "matrixRows": 8,
+  "cohortMatrixRows": 4,
+  "nationalMatrixRows": 4,
+  "cells": 14,
+  "cohortCells": 7,
+  "nationalCells": 7,
+  "rowsBelowFloor": 2,
+  "pairsBelowFloor": 59
+}
