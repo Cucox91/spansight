@@ -21,3 +21,7 @@ param apiImage = readEnvironmentVariable('API_IMAGE', '')
 // serves with its own cert. Canonical URL stays https://www.spansights.com.
 param spaCustomDomains = ['www.spansights.com']
 param spaApexDomain = 'spansights.com'
+
+// Ask the Map (FR-AI.1) — RUNBOOK §9. Both default safe: missing var/secret ⇒ dark.
+param aiEnabled = readEnvironmentVariable('AI_ENABLED', 'false') == 'true'
+param anthropicApiKey = readEnvironmentVariable('ANTHROPIC_API_KEY', '')
