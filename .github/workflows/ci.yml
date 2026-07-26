@@ -122,6 +122,48 @@ jobs:
           path: web/test-results/
           retention-days: 7
 
-  # TODO: dependency + container scanning (working conventions, IMPLEMENTATION-PLAN §3) —
-  # follow-up once there is a container image to scan; NuGet audit already fails the
-  # dotnet build on known-vulnerable packages (NU1903 + TreatWarningsAsErrors).
+  # Dependency + container scanning (FR-0.6 AC-2, NFR-4). The .NET half already runs inside
+  # the dotnet job: NuGet audit fails the build on known-vulnerable packages (NU1903 +
+  # TreatWarningsAsErrors). This job covers the two halves that were missing — the shipped
+  # container image, and the web dependency tree.
+  scan:
+    name: Dependency + container scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # Cheap check first, so a dependency finding still reports when the image build breaks.
+      # npm audit reads package-lock.json and queries the registry, so no npm ci is needed.
+      # Fails on any high/critical advisory except the reviewed, time-boxed exceptions in
+      # tools/npm-audit-allowlist.json — each of which stops working on its review_by date.
+      - name: Audit web dependencies
+        run: python3 tools/npm-audit-gate.py --web-dir web
+      - uses: docker/setup-buildx-action@v3
+      # The same image deploy.yml ships, built the same way from the repo root, but never
+      # pushed — CI scans exactly what would go to GHCR without publishing it.
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SpanSight.Api/Dockerfile
+          push: false
+          load: true
+          tags: spansight-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Fails on HIGH/CRITICAL that have a fix available. Unfixed CVEs are reported but do
+      # not block: a base-image CVE with no patch published yet is not something a PR can
+      # act on, and blocking on it would only train people to bypass the job. `cache: true`
+      # persists the vulnerability DB between runs (it is ~150 MB and rate-limited at source).
+      - name: Scan API image for known vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: spansight-api:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          cache: true
