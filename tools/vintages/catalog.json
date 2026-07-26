@@ -10,7 +10,7 @@
         "zipSha256": "c88a97c6b72936f4aef967668f06fe7377193a6ef9062f5975747e44ea648991",
         "file": "fluna_991992-20160919110712.txt",
         "fileSha256": "d75baaf22309da7d6b2c759e90904207c475abeb178f1b837b7b6e076e952b0a",
-        "downloadedUtc": "2026-07-26T15:30:51Z"
+        "downloadedUtc": "2026-07-26T15:51:12Z"
       },
       "rowsInSource": 666206,
       "rowsConverted": 666206,
@@ -23,14 +23,612 @@
         "BRIDGE_CONDITION",
         "LOWEST_RATING",
         "DECK_AREA",
-        "STATUS"
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
       ],
       "parquet": {
         "file": "nbi_1992.parquet",
         "rows": 666206,
-        "bytes": 35270238
+        "bytes": 35260857
       },
-      "convertedUtc": "2026-07-26T15:31:04Z",
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1993": {
+      "year": 1993,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1993hwybronlyonefile.zip",
+        "zip": "1993hwybronlyonefile.zip",
+        "zipSha256": "cf4574ee73435de6d1286d1f0d8e5e0a7474797cd2b974f8d9ccaee00948cb26",
+        "file": "fluna_991993-20160919080244.txt",
+        "fileSha256": "4a6f72be1464ba8324752c29b7b1a74ff68916fc1bfc9f430ae8fb7babfa4d7e",
+        "downloadedUtc": "2026-07-26T15:51:32Z"
+      },
+      "rowsInSource": 668433,
+      "rowsConverted": 668433,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1993.parquet",
+        "rows": 668433,
+        "bytes": 35793384
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1994": {
+      "year": 1994,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1994hwybronlyonefile.zip",
+        "zip": "1994hwybronlyonefile.zip",
+        "zipSha256": "f44035e3851ab3e6b9b505244a19e5503a8877a8e39213e5204f52842314fc4a",
+        "file": "fluna_991994-20160916015637.txt",
+        "fileSha256": "7c0e4b9553b87f1eacbca70282ce8ee56d1fbb80d577db7e143065df4c12e38f",
+        "downloadedUtc": "2026-07-26T15:51:53Z"
+      },
+      "rowsInSource": 670876,
+      "rowsConverted": 670876,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1994.parquet",
+        "rows": 670876,
+        "bytes": 35937780
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1995": {
+      "year": 1995,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1995hwybronlyonefile.zip",
+        "zip": "1995hwybronlyonefile.zip",
+        "zipSha256": "4886c4f246a08d8fedefd60b78d5a028b72ba9500936b8ee3a7b4ba7428eb0cf",
+        "file": "fluna_991995-20160915061700.txt",
+        "fileSha256": "0f0269674011b84ff48617451045b44f82ab168c11b71afc06d4a2e1cce3ee38",
+        "downloadedUtc": "2026-07-26T15:52:13Z"
+      },
+      "rowsInSource": 680661,
+      "rowsConverted": 680661,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1995.parquet",
+        "rows": 680661,
+        "bytes": 37410530
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1996": {
+      "year": 1996,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1996hwybronlyonefile.zip",
+        "zip": "1996hwybronlyonefile.zip",
+        "zipSha256": "22f6be2badfd3c4913eecbe3592b175c7065c77df69a0353cf7ca9d0304c6621",
+        "file": "fluna_991996-20160914145707.txt",
+        "fileSha256": "c6b6b7d129c202e81a72de3da8b73d3822f6ccf2b3bb05c2542f2efd49152608",
+        "downloadedUtc": "2026-07-26T15:52:33Z"
+      },
+      "rowsInSource": 679060,
+      "rowsConverted": 679060,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1996.parquet",
+        "rows": 679060,
+        "bytes": 37390711
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1997": {
+      "year": 1997,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1997hwybronlyonefile.zip",
+        "zip": "1997hwybronlyonefile.zip",
+        "zipSha256": "558d8b5de47b5adc24e904601446e1de4520f9b009b8aec7a34aaaa1d27bbf63",
+        "file": "fluna_991997-20160914113552.txt",
+        "fileSha256": "0f7e6b52adafb002157be88b08dc13597ee9ee59befd51804f750ccd858f8856",
+        "downloadedUtc": "2026-07-26T15:52:57Z"
+      },
+      "rowsInSource": 683045,
+      "rowsConverted": 683045,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1997.parquet",
+        "rows": 683045,
+        "bytes": 39515461
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1998": {
+      "year": 1998,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1998hwybronlyonefile.zip",
+        "zip": "1998hwybronlyonefile.zip",
+        "zipSha256": "f4a29b372b4ba3d6f1bc5e2356e31b11328a0612f0d1b42407e282d8fdcfde6f",
+        "file": "fluna_991998-20160914100012.txt",
+        "fileSha256": "b68144d1293446a5554930739fead7ec47fa3780944ce413af85475ebc9dc420",
+        "downloadedUtc": "2026-07-26T15:53:19Z"
+      },
+      "rowsInSource": 683860,
+      "rowsConverted": 683860,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1998.parquet",
+        "rows": 683860,
+        "bytes": 40272413
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "1999": {
+      "year": 1999,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/1999hwybronlyonefile.zip",
+        "zip": "1999hwybronlyonefile.zip",
+        "zipSha256": "aae52519678bb008f4c18a09a6e78070911acdafb337b6862d559e27cf49f95a",
+        "file": "fluna_991999-20160914080719.txt",
+        "fileSha256": "2ffd58fa7a57c262ccef96d4e497c4610126ca74626a26ea8734cd1904d1823a",
+        "downloadedUtc": "2026-07-26T15:53:43Z"
+      },
+      "rowsInSource": 688415,
+      "rowsConverted": 688415,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_1999.parquet",
+        "rows": 688415,
+        "bytes": 40977917
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2000": {
+      "year": 2000,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2000hwybronlyonefile.zip",
+        "zip": "2000hwybronlyonefile.zip",
+        "zipSha256": "c443a2f3f044a810083a86239995a0b500f2baa80424f1c94d295ccc7d220bb0",
+        "file": "fluna_992000-20160913161425.txt",
+        "fileSha256": "e51da45efb0ce260e3dacc429a0c4b4151e4d078211c6bdef25259a8a939898b",
+        "downloadedUtc": "2026-07-26T15:54:08Z"
+      },
+      "rowsInSource": 691059,
+      "rowsConverted": 691059,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2000.parquet",
+        "rows": 691059,
+        "bytes": 41274640
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2001": {
+      "year": 2001,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2001hwybronlyonefile.zip",
+        "zip": "2001hwybronlyonefile.zip",
+        "zipSha256": "30d4f1f0d355b922394a55f5c76ecf067bad7a9735f29936ddac24eba079698e",
+        "file": "fluna_992001-20160913152639.txt",
+        "fileSha256": "5773f3b8ba28adf64f4d3b999cc8a83fd6588c60fe24e459a1aa5d5b84cb0128",
+        "downloadedUtc": "2026-07-26T15:54:28Z"
+      },
+      "rowsInSource": 694940,
+      "rowsConverted": 694940,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2001.parquet",
+        "rows": 694940,
+        "bytes": 41573004
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2002": {
+      "year": 2002,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2002hwybronlyonefile.zip",
+        "zip": "2002hwybronlyonefile.zip",
+        "zipSha256": "d1a45fb20d2c14e745289d82a430b41c34ff341ae88c177191a79bbf419271c6",
+        "file": "fluna_992002-20160913143342.txt",
+        "fileSha256": "ffabf674895aec4c5591d18ea84f23ab37190c7cfa4b0af99c1d146ead01207d",
+        "downloadedUtc": "2026-07-26T15:54:53Z"
+      },
+      "rowsInSource": 697005,
+      "rowsConverted": 697005,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2002.parquet",
+        "rows": 697005,
+        "bytes": 41419202
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2003": {
+      "year": 2003,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2003hwybronlyonefile.zip",
+        "zip": "2003hwybronlyonefile.zip",
+        "zipSha256": "f6e5a0e02b6b122cb2ef831d3c195f91847daaedbbea9315c76de67866472fac",
+        "file": "fluna_992003-20160913132954.txt",
+        "fileSha256": "5f6b012b053155a5e041d785d3c674d975f89a2450bc3d7b52b8322680dfe2c7",
+        "downloadedUtc": "2026-07-26T15:55:15Z"
+      },
+      "rowsInSource": 699903,
+      "rowsConverted": 699903,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2003.parquet",
+        "rows": 699903,
+        "bytes": 42040571
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2004": {
+      "year": 2004,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2004hwybronlyonefile.zip",
+        "zip": "2004hwybronlyonefile.zip",
+        "zipSha256": "97c03212ef401c098c043630ad5b98dfa499a85da4c9ba055db8fdd6cd6dcc10",
+        "file": "fluna_992004-20160913113946.txt",
+        "fileSha256": "f4d3a5d7ddd6c93c756923dfd0d9fcb29baef58a233c3310073697e8d88e441f",
+        "downloadedUtc": "2026-07-26T15:55:36Z"
+      },
+      "rowsInSource": 703534,
+      "rowsConverted": 703534,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2004.parquet",
+        "rows": 703534,
+        "bytes": 42698007
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2005": {
+      "year": 2005,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2005hwybronlyonefile.zip",
+        "zip": "2005hwybronlyonefile.zip",
+        "zipSha256": "840d3e1aaf8321fa2717a4a67619a6577e7330dbdc5e999c7f4cec8e1660b94b",
+        "file": "fluna_992005-20160913103943.txt",
+        "fileSha256": "bb25583398345de09dadcf7287e2c9ca29b763cde0db58fc5c8dc3ac5d5f960d",
+        "downloadedUtc": "2026-07-26T15:55:58Z"
+      },
+      "rowsInSource": 706753,
+      "rowsConverted": 706753,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2005.parquet",
+        "rows": 706753,
+        "bytes": 43124623
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2006": {
+      "year": 2006,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2006hwybronlyonefile.zip",
+        "zip": "2006hwybronlyonefile.zip",
+        "zipSha256": "9368d359801d69475663be2771e92a6a519b0db598d9ac8a32d44b776d4909a1",
+        "file": "fluna_992006-20160913094640.txt",
+        "fileSha256": "3b6fb24aa60a043f77f5fca203753d581966aaf6f88422cc08485064cac0a1ae",
+        "downloadedUtc": "2026-07-26T15:56:15Z"
+      },
+      "rowsInSource": 709613,
+      "rowsConverted": 709613,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2006.parquet",
+        "rows": 709613,
+        "bytes": 43913441
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2007": {
+      "year": 2007,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2007hwybronlyonefile.zip",
+        "zip": "2007hwybronlyonefile.zip",
+        "zipSha256": "a13075994b5a9d2fa32c5cffcd5fce90aff4417bf669fb5cd694bf15a3d3d287",
+        "file": "fluna_992007-20160913085200.txt",
+        "fileSha256": "ce34d06bad92e2a3ba726cfe49da020e95e78dc682c41c9d1ad5f1084a76dec5",
+        "downloadedUtc": "2026-07-26T15:56:46Z"
+      },
+      "rowsInSource": 715434,
+      "rowsConverted": 715434,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2007.parquet",
+        "rows": 715434,
+        "bytes": 44434635
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2008": {
+      "year": 2008,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2008hwybronlyonefile.zip",
+        "zip": "2008hwybronlyonefile.zip",
+        "zipSha256": "9d05a59517fa673df8e1209d1d6c3bc484dd21f64a8d7bbd1a299e7d64bd741b",
+        "file": "fluna_992008-20160912081228.txt",
+        "fileSha256": "f5904e77f1efc4fa518497376ffb099e2f5491b7411a2146537e848c32057d76",
+        "downloadedUtc": "2026-07-26T15:57:02Z"
+      },
+      "rowsInSource": 717822,
+      "rowsConverted": 717822,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2008.parquet",
+        "rows": 717822,
+        "bytes": 44717710
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2009": {
+      "year": 2009,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2009hwybronlyonefile.zip",
+        "zip": "2009hwybronlyonefile.zip",
+        "zipSha256": "fe0b153b0b1ad06a4e303fffada1b443ab88c8fc8b4d268f99adc299835059ac",
+        "file": "fluna_992009-20160913080102.txt",
+        "fileSha256": "8f1b1922d53da844cbba3d6ef4cc0a22f6d38037d218e6a09dabedc310bb4a30",
+        "downloadedUtc": "2026-07-26T15:57:17Z"
+      },
+      "rowsInSource": 713115,
+      "rowsConverted": 713115,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2009.parquet",
+        "rows": 713115,
+        "bytes": 44865929
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
       "toolVersion": "1.0.0"
     },
     "2010": {
@@ -42,7 +640,7 @@
         "zipSha256": "c68333e5d7d1f0673c23a388e458b7067a8d8134c29bd369909125040507cea0",
         "file": "2010_highwaybridgesonly_onefile.txt",
         "fileSha256": "a5e61364a927b1e63c2bee60863d1be14e3a2eeebe8b224eb2788a3d3f72f3bb",
-        "downloadedUtc": "2026-07-26T15:30:51Z"
+        "downloadedUtc": "2026-07-26T15:57:17Z"
       },
       "rowsInSource": 604493,
       "rowsConverted": 604493,
@@ -56,14 +654,569 @@
         "LOWEST_RATING",
         "DECK_AREA",
         "STATUS_WITH_10YR_RULE",
-        "STATUS_NO_10YR_RULE"
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
       ],
       "parquet": {
         "file": "nbi_2010.parquet",
         "rows": 604493,
-        "bytes": 39095772
+        "bytes": 39104113
       },
-      "convertedUtc": "2026-07-26T15:31:04Z",
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2011": {
+      "year": 2011,
+      "era": "SufficiencyRating",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2011hwybronlyonefile.zip",
+        "zip": "2011hwybronlyonefile.zip",
+        "zipSha256": "d9695aee5ada3a7251896958baf548939bd0dd333c8388b8601e7bd0e8644306",
+        "file": "2011_highwaybridgesonly_onefile.txt",
+        "fileSha256": "3154c39f1b2a0dceaac4c75736b321b77b21fbd36b7905de55b23a9069e03ccb",
+        "downloadedUtc": "2026-07-26T15:57:42Z"
+      },
+      "rowsInSource": 605103,
+      "rowsConverted": 605103,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 133,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2011.parquet",
+        "rows": 605103,
+        "bytes": 39467633
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2012": {
+      "year": 2012,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2012hwybronlyonefile.zip",
+        "zip": "2012hwybronlyonefile.zip",
+        "zipSha256": "c5900852bf922bee96d1c9998c45fd16d0b196505e51fc832d4887a80a8caa2e",
+        "file": "fluna_992012-20170608082037.txt",
+        "fileSha256": "4ce2fe18f70e12bf6e1bc48dc30a57570b3c9de4ea401c8525a06847313e3089",
+        "downloadedUtc": "2026-07-26T15:58:05Z"
+      },
+      "rowsInSource": 607380,
+      "rowsConverted": 607380,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2012.parquet",
+        "rows": 607380,
+        "bytes": 40887132
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2013": {
+      "year": 2013,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2013hwybronlyonefile.zip",
+        "zip": "2013hwybronlyonefile.zip",
+        "zipSha256": "0ef5a9b09c519b55fd64ef8c0866e24a64a43dc53a2ebb22f913322a33361023",
+        "file": "2013_hwybr_onefile_del.txt",
+        "fileSha256": "c0fbddbf3752d270a6f68457965d093c88ca4e28c6f0841f9d70a8a2cbc11936",
+        "downloadedUtc": "2026-07-26T15:58:27Z"
+      },
+      "rowsInSource": 607751,
+      "rowsConverted": 607751,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2013.parquet",
+        "rows": 607751,
+        "bytes": 40097567
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2014": {
+      "year": 2014,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2014hwybronlyonefile.zip",
+        "zip": "2014hwybronlyonefile.zip",
+        "zipSha256": "8eb87facbdbb6696898e38c3695716050aa47ca5128a1011bf065e9bc3e6e42f",
+        "file": "2014_hwybr_onefile_del.txt",
+        "fileSha256": "fd574c5907108155807236ecbfa8a982b86b435f47ad0d37454cefd3c398c559",
+        "downloadedUtc": "2026-07-26T15:58:41Z"
+      },
+      "rowsInSource": 610749,
+      "rowsConverted": 610749,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2014.parquet",
+        "rows": 610749,
+        "bytes": 40210996
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2015": {
+      "year": 2015,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2015hwybronlyonefile.zip",
+        "zip": "2015hwybronlyonefile.zip",
+        "zipSha256": "965e42a8cf8d465a451735d1c2e63f7b612e2b883a97d53199d9c575db8cf377",
+        "file": "slubkin_992016-20160125163323.txt",
+        "fileSha256": "112f3ea861593c4c33ae6824eb190fc8844c0ec3b2999fac88829c40c37c988d",
+        "downloadedUtc": "2026-07-26T15:59:04Z"
+      },
+      "rowsInSource": 611845,
+      "rowsConverted": 611845,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 134,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2015.parquet",
+        "rows": 611845,
+        "bytes": 41548863
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2016": {
+      "year": 2016,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2016hwybronlyonefile.zip",
+        "zip": "2016hwybronlyonefile.zip",
+        "zipSha256": "eba86c6bdfca6fa4e273b2315d85929ad785b440390a029f0988a9947b081ad0",
+        "file": "slubkin_992016-20170106140351.txt",
+        "fileSha256": "2ada5b0afb67e4465dc8a3d34c6d4e9bff40beb9a3a9846acc58cca3620332dd",
+        "downloadedUtc": "2026-07-26T15:59:18Z"
+      },
+      "rowsInSource": 614387,
+      "rowsConverted": 614387,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 135,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2016.parquet",
+        "rows": 614387,
+        "bytes": 41863429
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2017": {
+      "year": 2017,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2017hwybronlyonefile.zip",
+        "zip": "2017hwybronlyonefile.zip",
+        "zipSha256": "386b8ae226d79c64156046d79be0023af08a45fef843c1a22793fd806477a197",
+        "file": "2017HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "bb45da411b3b2e809a7ad9add0770f1dd294afe2df556e8dcf7c9c5fea056f66",
+        "downloadedUtc": "2026-07-26T15:59:42Z"
+      },
+      "rowsInSource": 615002,
+      "rowsConverted": 615002,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 137,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS"
+      ],
+      "parquet": {
+        "file": "nbi_2017.parquet",
+        "rows": 615002,
+        "bytes": 44168435
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2018": {
+      "year": 2018,
+      "era": "TenYearRule",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2018hwybronefiledel.zip",
+        "zip": "2018hwybronefiledel.zip",
+        "zipSha256": "124773788be1914ad08c2f41997e90ec3c02e0f19fda801eeba85cf53745a470",
+        "file": "2018HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "618d934d0cf6dd38dc548b84f901a56eebdecf3521ac2ed0a4981606ff8aed27",
+        "downloadedUtc": "2026-07-26T15:59:59Z"
+      },
+      "rowsInSource": 616096,
+      "rowsConverted": 616096,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 137,
+      "absentColumns": [
+        "SUBMITTED_BY",
+        "BRIDGE_CONDITION",
+        "LOWEST_RATING",
+        "DECK_AREA",
+        "STATUS"
+      ],
+      "parquet": {
+        "file": "nbi_2018.parquet",
+        "rows": 616096,
+        "bytes": 44558434
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2019": {
+      "year": 2019,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2019hwybronefiledel.zip",
+        "zip": "2019hwybronefiledel.zip",
+        "zipSha256": "41405d6742bec4fa2664c22f354cb5a6e515ad86bcfafafd6148f2723ff115c8",
+        "file": "2019HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "4de3da30fe81dcd5c6670fdb0c7e1500da5d385d199c5d291cadc473b7109825",
+        "downloadedUtc": "2026-07-26T16:00:23Z"
+      },
+      "rowsInSource": 617084,
+      "rowsConverted": 617084,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2019.parquet",
+        "rows": 617084,
+        "bytes": 42706593
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2020": {
+      "year": 2020,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2020hwybronefiledel.zip",
+        "zip": "2020hwybronefiledel.zip",
+        "zipSha256": "fcf14dd14590b0346c2f8b4194757b412f2f88d8fe679a2e6e06640642e31b4e",
+        "file": "2020HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "b8db80b157cfbf581f35acd7aff5c356a457beee61ff1d331bb0b1d7e5ee93cd",
+        "downloadedUtc": "2026-07-26T16:00:46Z"
+      },
+      "rowsInSource": 618456,
+      "rowsConverted": 618456,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2020.parquet",
+        "rows": 618456,
+        "bytes": 43041481
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2021": {
+      "year": 2021,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2021hwybronefiledel.zip",
+        "zip": "2021hwybronefiledel.zip",
+        "zipSha256": "01c6f736bfc6416556aab97445c0da454cfa5d6be4c91d9ed756f9c1c929051f",
+        "file": "2021HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "d4138502243df3a8e693b8c98f316268a43aaeaa5fd00282df4bf03fbac36fe5",
+        "downloadedUtc": "2026-07-26T16:01:02Z"
+      },
+      "rowsInSource": 619622,
+      "rowsConverted": 619622,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2021.parquet",
+        "rows": 619622,
+        "bytes": 43219180
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2022": {
+      "year": 2022,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2022hwybronefiledel.zip",
+        "zip": "2022hwybronefiledel.zip",
+        "zipSha256": "0fc4d7b09c625d36e291eee1c839b6e819e169ab89e2351c4f489583ad83ffad",
+        "file": "2022HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "3386e6b83c38fbb3e8478ea4a7d287ec9d954f6dc7985663b8bc0b536e6ec183",
+        "downloadedUtc": "2026-07-26T16:01:23Z"
+      },
+      "rowsInSource": 620669,
+      "rowsConverted": 620669,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2022.parquet",
+        "rows": 620669,
+        "bytes": 43313407
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2023": {
+      "year": 2023,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2023hwybronefiledel.zip",
+        "zip": "2023hwybronefiledel.zip",
+        "zipSha256": "3f58152e7a6fa1882791b5fc41455f709b727575bd78c7219ea04bc60d326486",
+        "file": "2023HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "524d267b51bba1a7cd760da345d1613c6c4d5ee74beda168fd0ae7f82d7a18d7",
+        "downloadedUtc": "2026-07-26T16:01:37Z"
+      },
+      "rowsInSource": 621581,
+      "rowsConverted": 621581,
+      "rowsRejected": 0,
+      "rejectsByReason": {},
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2023.parquet",
+        "rows": 621581,
+        "bytes": 43427162
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
+      "toolVersion": "1.0.0"
+    },
+    "2024": {
+      "year": 2024,
+      "era": "PerformanceMeasures",
+      "source": {
+        "url": "https://www.fhwa.dot.gov/bridge/nbi/2024hwybronefiledel.zip",
+        "zip": "2024hwybronefiledel.zip",
+        "zipSha256": "737e2167681b3d3d6f6a532145ff47037f78c47affecee90979c8d98b264cb34",
+        "file": "2024HwyBridgesDelimitedAllStates.txt",
+        "fileSha256": "b1b3858f6a9e889b6f2966af55f24747f86c82a07aa08b1e20d7adb793b49796",
+        "downloadedUtc": "2026-07-26T16:02:00Z"
+      },
+      "rowsInSource": 623218,
+      "rowsConverted": 623217,
+      "rowsRejected": 1,
+      "rejectsByReason": {
+        "row_field_count_mismatch": 1
+      },
+      "reconciles": true,
+      "sourceColumns": 123,
+      "absentColumns": [
+        "DATE_LAST_UPDATE",
+        "TYPE_LAST_UPDATE",
+        "DEDUCT_CODE",
+        "REMARKS",
+        "PROGRAM_CODE",
+        "PROJ_NO",
+        "PROJ_SUFFIX",
+        "NBI_TYPE_OF_IMP",
+        "DTL_TYPE_OF_IMP",
+        "SPECIAL_CODE",
+        "STEP_CODE",
+        "STATUS",
+        "SUFFICIENCY_ASTERC",
+        "SUFFICIENCY_RATING",
+        "STATUS_WITH_10YR_RULE",
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
+      ],
+      "parquet": {
+        "file": "nbi_2024.parquet",
+        "rows": 623217,
+        "bytes": 43520164
+      },
+      "convertedUtc": "2026-07-26T17:29:57Z",
       "toolVersion": "1.0.0"
     },
     "2025": {
@@ -75,7 +1228,7 @@
         "zipSha256": "bee3b363a1f51095d0f9fb731f01a83bc30fb35243e1176955057c016e5f656e",
         "file": "2025HwyBridgesDelimitedAllStates.txt",
         "fileSha256": "b59233c65b78bab2f31c3ddda579d894d1b381164885eefa9179eeaf5f69a7f1",
-        "downloadedUtc": "2026-07-26T15:30:51Z"
+        "downloadedUtc": "2026-07-26T16:02:00Z"
       },
       "rowsInSource": 624193,
       "rowsConverted": 624193,
@@ -99,17 +1252,20 @@
         "SUFFICIENCY_ASTERC",
         "SUFFICIENCY_RATING",
         "STATUS_WITH_10YR_RULE",
-        "STATUS_NO_10YR_RULE"
+        "STATUS_NO_10YR_RULE",
+        "CAT10",
+        "CAT23",
+        "CAT29"
       ],
       "parquet": {
         "file": "nbi_2025.parquet",
         "rows": 624193,
-        "bytes": 43868857
+        "bytes": 43887113
       },
-      "convertedUtc": "2026-07-26T15:31:04Z",
+      "convertedUtc": "2026-07-26T17:29:57Z",
       "toolVersion": "1.0.0"
     }
   },
-  "outputColumns": 143,
-  "updatedUtc": "2026-07-26T15:31:04Z"
+  "outputColumns": 146,
+  "updatedUtc": "2026-07-26T17:29:57Z"
 }
