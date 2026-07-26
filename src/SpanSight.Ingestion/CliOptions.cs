@@ -20,7 +20,7 @@ public sealed record CliOptions
     public int? Limit { get; init; }
 
     public const string Usage = """
-        SpanSight ingestion CLI (FR-0.1/FR-0.2/FR-0.5)
+        SpanSight ingestion CLI (FR-0.1/FR-0.2/FR-0.5/FR-1.1)
 
         Usage:
           dotnet run --project src/SpanSight.Ingestion -- <command> [options]
@@ -32,6 +32,11 @@ public sealed record CliOptions
                              --dry-run               parse + validate only; no database writes
                              --force                 reload even if this exact file already completed
                              --limit <n>             stop after n data rows (smoke testing)
+          convert-vintage  Normalize one historical NBI vintage to the superset schema (FR-1.1).
+                             Reads and writes files only — no database.
+                             --file <path>           the vintage's national delimited .txt (required)
+                             --snapshot-year <yyyy>  the vintage year the file is claimed to be (required)
+                             --out <dir>             output root (default: data/vintages)
           export-geojson   Stream core bridges as GeoJSONSeq for the tile build (tools/build-tiles.sh).
                              --out <path>            output .geojsonl path (required)
           migrate          Apply EF Core migrations to the target database.
@@ -48,7 +53,7 @@ public sealed record CliOptions
         }
 
         var options = new CliOptions { Command = args[0].ToLowerInvariant() };
-        if (options.Command is not ("load" or "export-geojson" or "migrate"))
+        if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage"))
         {
             return (null, $"Unknown command '{args[0]}'.");
         }
@@ -103,6 +108,8 @@ public sealed record CliOptions
         {
             "load" when options.File is null => (null, "load requires --file."),
             "load" when options.SnapshotYear is null => (null, "load requires --snapshot-year."),
+            "convert-vintage" when options.File is null => (null, "convert-vintage requires --file."),
+            "convert-vintage" when options.SnapshotYear is null => (null, "convert-vintage requires --snapshot-year."),
             "export-geojson" when options.Output is null => (null, "export-geojson requires --out."),
             _ => (options, null),
         };

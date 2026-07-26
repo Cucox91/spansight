@@ -32,6 +32,17 @@ jobs:
       # here because ubuntu-latest ships a working Docker daemon.
       - name: Coverage gate (NFR-5)
         run: python3 tools/coverage-gate.py --results-dir artifacts/coverage --threshold 70
+      # FR-1.1 AC-3: the committed era fixtures (1992/2010/2025, 300 real rows each) must convert
+      # end to end — .NET normalization plus the DuckDB Parquet write — on every PR. Fixture-only,
+      # so it stays fast and no bulk NBI data is involved.
+      - name: Install DuckDB
+        run: |
+          curl -fsSL -o /tmp/duckdb.zip \
+            https://github.com/duckdb/duckdb/releases/download/v1.5.5/duckdb_cli-linux-amd64.zip
+          sudo unzip -q -o /tmp/duckdb.zip -d /usr/local/bin
+          duckdb --version
+      - name: Convert vintage fixtures (FR-1.1)
+        run: tools/vintages/convert.sh --fixtures
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
