@@ -13,10 +13,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
             Explorer
           </NavLink>
+          <NavLink to="/trends" className={({ isActive }) => (isActive ? 'active' : '')}>
+            Trends
+          </NavLink>
           {/* Disabled tabs advertise later phases instead of hiding them (DESIGN.md). */}
-          <button disabled title="Phase 1">
-            Analytics<small>Phase 1</small>
-          </button>
           <button disabled title="Phase 2">
             Live Ops<small>Phase 2</small>
           </button>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { fetchDetail } from '../api/client'
-import type { BridgeDetail } from '../api/types'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { fetchDetail, fetchHistory } from '../api/client'
+import type { BridgeDetail, BridgeHistory } from '../api/types'
+import ConditionSparkline from './ConditionSparkline'
 
 /**
  * Route-driven detail drawer (UC-0.3): /bridge/{state}/{structureNumber} is shareable and
@@ -12,6 +13,10 @@ export default function BridgeDrawer() {
   const navigate = useNavigate()
   const [detail, setDetail] = useState<BridgeDetail | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  // The history is a second, independent fetch (FR-1.2): the record renders as soon as it arrives
+  // and the chart fills in after, so a missing or slow aggregate never holds up the drawer.
+  const [history, setHistory] = useState<BridgeHistory | null>(null)
+  const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'none' | 'error'>('loading')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -24,6 +29,23 @@ export default function BridgeDrawer() {
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setStatus('error')
+        }
+      })
+    return () => controller.abort()
+  }, [state, structureNumber])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setHistoryStatus('loading')
+    setHistory(null)
+    fetchHistory(state, structureNumber, controller.signal)
+      .then((data) => {
+        setHistory(data)
+        setHistoryStatus(data ? 'ready' : 'none')
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setHistoryStatus('error')
         }
       })
     return () => controller.abort()
@@ -100,10 +122,42 @@ export default function BridgeDrawer() {
             </tbody>
           </table>
 
-          <div className="phase-note">
-            <strong>Condition history</strong> — the per-bridge trend chart ships in Phase 1
-            (FR-1.2), computed offline from 30 years of NBI vintages (ADR-005).
-          </div>
+          <section className="history" aria-label="Condition history">
+            <h4>Condition history</h4>
+
+            {historyStatus === 'loading' && (
+              <div className="drawer-state">Loading condition history…</div>
+            )}
+            {historyStatus === 'error' && (
+              <div className="drawer-state">
+                Condition history is unavailable right now — the record above is unaffected.
+              </div>
+            )}
+            {historyStatus === 'none' && (
+              <div className="drawer-state">
+                No published condition history for this structure in the 1992–2025 vintages.
+              </div>
+            )}
+            {historyStatus === 'ready' && history && (
+              <>
+                <ConditionSparkline history={history} />
+                {/* GR-6, adjacent to the chart rather than only in the footer: the method that
+                    produced these numbers travels with them. */}
+                <p className="history-method">{history.method}</p>
+                <p className="history-method">
+                  <Link
+                    to={
+                      detail.countyCode
+                        ? `/trends?level=county&fips=${detail.stateFips}${detail.countyCode}`
+                        : `/trends?level=state&fips=${detail.stateFips}`
+                    }
+                  >
+                    Compare with {detail.countyCode ? 'county' : 'state'}-wide condition over time →
+                  </Link>
+                </p>
+              </>
+            )}
+          </section>
         </div>
       )}
     </section>

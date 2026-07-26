@@ -1,12 +1,14 @@
 import type {
   BridgeDetail,
   BridgeFeatureCollection,
+  BridgeHistory,
   BridgeSummary,
   Lookups,
   NlQueryResponse,
   PagedResponse,
   QaSummary,
   StatsSummary,
+  TrendSeries,
 } from './types'
 import { toSearchParams, type FilterState } from '../state/filters'
 
@@ -48,6 +50,43 @@ export function fetchStats(filters: FilterState, signal?: AbortSignal): Promise<
 
 export function fetchDetail(state: string, structureNumber: string, signal?: AbortSignal): Promise<BridgeDetail> {
   return getJson(`/api/bridges/${encodeURIComponent(state)}/${encodeURIComponent(structureNumber)}`, signal)
+}
+
+/**
+ * FR-1.2 — a structure's published condition history. 404 is an ordinary outcome (the structure
+ * predates or postdates the loaded vintages), so the caller distinguishes it from a real failure.
+ */
+export async function fetchHistory(
+  state: string,
+  structureNumber: string,
+  signal?: AbortSignal,
+): Promise<BridgeHistory | null> {
+  const path = `/api/bridges/${encodeURIComponent(state)}/${encodeURIComponent(structureNumber)}/history`
+  const response = await fetch(`${BASE}${path}`, { signal })
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(`API ${response.status} on ${path}`)
+  }
+  return (await response.json()) as BridgeHistory
+}
+
+/** FR-1.2 — Good/Fair/Poor shares over time for one state or county. */
+export function fetchTrends(
+  level: 'state' | 'county',
+  fips: string,
+  fromYear: number,
+  toYear: number,
+  signal?: AbortSignal,
+): Promise<TrendSeries> {
+  const params = new URLSearchParams({
+    level,
+    fips,
+    fromYear: String(fromYear),
+    toYear: String(toYear),
+  })
+  return getJson(`/api/trends?${params}`, signal)
 }
 
 export function fetchQaSummary(signal?: AbortSignal): Promise<QaSummary> {
