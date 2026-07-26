@@ -46,6 +46,13 @@ jobs:
           duckdb --version
       - name: Convert vintage fixtures (FR-1.1)
         run: tools/vintages/convert.sh --fixtures
+      # FR-1.5: the same shape for the Census staging — convert the committed six-county fixture,
+      # then assert the two properties a row count cannot see (the boundaries answer
+      # point-in-polygon; the FIPS keys are still zero-padded text). Fixture-only; no download.
+      - name: Convert + verify census fixtures (FR-1.5)
+        run: |
+          tools/census/convert.sh --fixtures
+          tools/census/verify-fixtures.sh
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4

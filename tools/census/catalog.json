@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "boundaries": {
+      "vintage": 2025,
+      "product": "TIGER/Line Shapefiles - County and Equivalent Entity (National)",
+      "publisher": "U.S. Census Bureau, Geography Division",
+      "crs": "EPSG:4269 (NAD83 geographic, read from the shipped .prj)",
+      "boundariesAsOf": "2025-01-01",
+      "citation": "U.S. Census Bureau, 2025 TIGER/Line(R) Shapefiles, County and Equivalent Entity National Shapefile. Boundaries and names as of 2025-01-01.",
+      "license": "Public domain - a work of the United States Government is not eligible for copyright protection (17 U.S.C. Sect 105). The Census Bureau asks only that it be cited as the source.",
+      "disclaimer": "No warranty is made as to positional or attribute accuracy. The boundary information is for statistical data collection and tabulation purposes only; its depiction does not constitute a determination of jurisdictional authority or rights of ownership or entitlement, and it is not a legal land description. TIGER/Line(R) is a registered trademark of the U.S. Census Bureau.",
+      "redistributionNote": "The Census Bureau requests that any repackaging of TIGER/Line data for distribution carry a conspicuously placed statement to that effect. Anything derived from this geometry and served publicly (tiles, a county overlay) must show the citation and disclaimer above.",
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/COUNTY/tl_2025_us_county.zip",
+      "file": "tl_2025_us_county.zip",
+      "sha256": "9c6e9d9076abce2670d1de255de3710c35ecca00a7005d88e012dec52d95f763",
+      "bytes": 83989800,
+      "lastModified": "Tue, 23 Sep 2025 02:15:55 GMT",
+      "downloadedUtc": "2026-07-26T17:50:00Z"
+    },
+    "population": {
+      "vintage": 2024,
+      "product": "American Community Survey 5-Year Estimates, Table B01003 (Total Population)",
+      "publisher": "U.S. Census Bureau",
+      "period": "2020-2024",
+      "accessPath": "Bulk table-based Summary File on www2.census.gov. No API key: api.census.gov requires a key for every data query (API User Guide, 2026-05-21), the bulk path requires none.",
+      "citation": "U.S. Census Bureau, 2020-2024 American Community Survey 5-Year Estimates, Table B01003 (Total Population).",
+      "license": "Public domain - a work of the United States Government is not eligible for copyright protection (17 U.S.C. Sect 105).",
+      "disclaimer": "ACS values are survey estimates with margins of error, not counts. The published margin of error travels with the estimate (POP_MOE) and must be shown alongside any derived figure (GR-6).",
+      "redistributionNote": "The API terms of service are not triggered by the bulk path, so no endorsement disclaimer is required. Do not present a modified value as a Census figure.",
+      "url": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+      "file": "acsdt5y2024-b01003.dat",
+      "sha256": "38d1a992bb058d184009b10b9b34987279aee575e4323165cfb5706c69b6ca90",
+      "bytes": 18313708,
+      "lastModified": "Thu, 29 Jan 2026 12:31:45 GMT",
+      "downloadedUtc": "2026-07-26T17:50:00Z"
+    }
+  },
+  "updatedUtc": "2026-07-26T18:03:05Z",
+  "outputs": {
+    "boundaries": {
+      "vintage": 2025,
+      "featuresInSource": 3235,
+      "rowsWritten": 3235,
+      "distinctGeoids": 3235,
+      "distinctStateFips": 56,
+      "nullGeometry": 0,
+      "geoidMalformed": 0,
+      "writtenCrs": "OGC:CRS84",
+      "bytes": 99447897,
+      "file": "counties.parquet"
+    },
+    "population": {
+      "vintage": 2024,
+      "period": "2020-2024",
+      "table": "B01003",
+      "rowsInSource": 616690,
+      "countyRowsInSource": 3222,
+      "rowsWritten": 3222,
+      "distinctGeoids": 3222,
+      "geoidMalformed": 0,
+      "estimateJamValues": 0,
+      "moeJamValues": 3090,
+      "publishedNationalTotal": 334922499,
+      "summedCountiesExcludingPr": 334922499,
+      "bytes": 16836,
+      "file": "county_population.parquet",
+      "nationalTotalAgrees": true
+    },
+    "join": {
+      "populationWithoutBoundary": 0,
+      "boundaryWithoutPopulation": 13,
+      "boundaryWithoutPopulationStates": "60,66,69,78"
+    },
+    "reconciles": true,
+    "convertedUtc": "2026-07-26T18:03:05Z",
+    "toolVersion": "1.0.0"
+  }
+}
