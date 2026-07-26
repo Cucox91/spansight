@@ -32,9 +32,12 @@ jobs:
       # here because ubuntu-latest ships a working Docker daemon.
       - name: Coverage gate (NFR-5)
         run: python3 tools/coverage-gate.py --results-dir artifacts/coverage --threshold 70
-      # FR-1.1 AC-3: the committed era fixtures (1992/2010/2025, 300 real rows each) must convert
-      # end to end — .NET normalization plus the DuckDB Parquet write — on every PR. Fixture-only,
-      # so it stays fast and no bulk NBI data is involved.
+      # FR-1.1: the committed era fixtures (300 real rows each) must convert end to end — .NET
+      # normalization plus the DuckDB Parquet write — on every PR. One fixture per *published
+      # layout*, not per era: 1992 (134 cols), 2010 (133), 2016 (135, adds CAT10), 2017 (137, adds
+      # CAT23/CAT29) and 2025 (123). All five, so a schema change cannot pass CI by only being
+      # right about the three layouts the original sample happened to cover. Fixture-only, so it
+      # stays fast and no bulk NBI data is involved.
       - name: Install DuckDB
         run: |
           curl -fsSL -o /tmp/duckdb.zip \
