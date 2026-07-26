@@ -324,3 +324,67 @@ az storage blob list --account-name stspansightdemo --container-name parquet-arc
 **Rollback / cost-out:** the set is fully reproducible from FHWA with §10.1, so deleting the
 container costs nothing but the rebuild time. `az storage blob delete-batch --account-name
 stspansightdemo --source parquet-archive --auth-mode key`.
+
+---
+
+## 10.3 Publish the Phase 1 condition aggregates to the demo (added 2026-07-26)
+
+The condition history (FR-1.2) is computed on the dev Mac from the Parquet set and published to the
+serving Postgres as **aggregates only** — one row per structure plus county/state rollups, about
+250 MB. The 20.6 M individual observations stay in Parquet (ADR-005).
+
+Unlike §10.1/§10.2, this **does** change the live demo: the drawer sparkline and the Trends view
+read these tables. It is additive — `analytics.*` is a new schema and nothing in `core` is touched,
+so a bad publish cannot damage the bridge inventory.
+
+### Build the aggregates **[RAZIEL or CC]** — local only, no cloud
+
+```bash
+tools/trends/build-trends.sh
+```
+
+It refuses to write anything unless all five invariants pass (rollups reconcile with the per-bridge
+series, no structure counted twice, no malformed series), so a green run is the check. The
+2026-07-26 run: 34 vintages, **1,039,109 structures, 20,649,259 observations, 111,335 rollup rows**.
+
+### Publish it **[RAZIEL]** — the az login is yours
+
+The migration adds the `analytics` schema; the loader then upserts and stamps every row with the
+job run id. Same Entra-token pattern and firewall dance as §3.
+
+```bash
+az postgres flexible-server firewall-rule create -g rg-spansight-demo -s psql-spansight-demo \
+  --name dev-mac --start-ip-address "$(curl -fsS https://api.ipify.org)" --end-ip-address "$(curl -fsS https://api.ipify.org)"
+
+TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+CONN="Host=psql-spansight-demo.postgres.database.azure.com;Database=spansight;Username=<your-upn-truncated-to-63>;Password=$TOKEN;Ssl Mode=Require;Command Timeout=300"
+
+dotnet run -c Release --project src/SpanSight.Ingestion -- load-trends --file data/trends --connection "$CONN"
+
+az postgres flexible-server firewall-rule delete -g rg-spansight-demo --server-name psql-spansight-demo --name dev-mac --yes
+```
+
+`load-trends` applies pending migrations itself, so no separate migrate step. Expect roughly ten
+minutes over WAN for the ~1.15 M rows (it took 9 s locally); `Command Timeout=300` is required for
+the same reason as §3.
+
+Re-running the same job id is a logged no-op. Rebuilding produces a new job id and re-publishes,
+and rows that the new job no longer contains are deleted in the same load — so the tables converge
+rather than accumulate (NFR-3).
+
+Verify from the public API, not from the database:
+
+```bash
+curl -s "https://www.spansights.com/api/trends?level=state&fips=12&fromYear=2020&toYear=2025" | jq '.points[-1]'
+curl -s "https://www.spansights.com/api/bridges/FL/<a real structure number>/history" | jq '.observedYears, .provenance'
+```
+
+**Rollback:** the aggregates are additive and fully rebuildable. To remove them entirely:
+
+```sql
+-- Cascades to bridge_condition_series and condition_rollup; core.bridge is untouched.
+TRUNCATE analytics.trend_run CASCADE;
+```
+
+The UI degrades to its published empty states — "No published condition history for this
+structure" in the drawer, and an explanatory message on the Trends view. Nothing 500s.
