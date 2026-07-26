@@ -20,7 +20,26 @@ jobs:
       - run: dotnet restore SpanSight.slnx
       - run: dotnet format SpanSight.slnx --verify-no-changes --no-restore
       - run: dotnet build SpanSight.slnx --no-restore --configuration Release
-      - run: dotnet test SpanSight.slnx --no-build --configuration Release
+      - name: Test with line coverage
+        run: >
+          dotnet test SpanSight.slnx --no-build --configuration Release
+          --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+          --results-directory artifacts/coverage
+      # NFR-5 (SRS §6): >=70% line coverage on ingestion/API core. The scoped number is the
+      # gate; the repo-wide number prints for information only. Measurement scope (EF
+      # migrations + generated code excluded) is coverlet.runsettings; gated scope is
+      # GATE_SCOPE in the script. The API rows come from the Testcontainers suite, which runs
+      # here because ubuntu-latest ships a working Docker daemon.
+      - name: Coverage gate (NFR-5)
+        run: python3 tools/coverage-gate.py --results-dir artifacts/coverage --threshold 70
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-cobertura
+          path: artifacts/coverage/**/coverage.cobertura.xml
+          if-no-files-found: ignore
+          retention-days: 7
 
   web:
     name: Web lint & build

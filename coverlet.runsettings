@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coverage collection settings for the "XPlat Code Coverage" collector (coverlet.collector),
+  passed to `dotnet test` with the /settings switch. See .github/workflows/ci.yml.
+
+  This file decides what is *measured*. `tools/coverage-gate.py` decides which of the measured
+  code the NFR-5 >=70% threshold applies to. Keeping the two separate means the repo-wide number
+  can print without becoming the gate (gate 0 retro, IMPLEMENTATION-PLAN.md §9 lesson 2).
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+
+          <!-- Generated code: source-generator output under obj/ (ASP.NET Core OpenAPI XML
+               comments, [GeneratedRegex] runners) and EF Core migrations, which are schema
+               DDL replayed by every Testcontainers fixture — 678 near-fully-"covered" lines
+               that would otherwise inflate every number in the report. -->
+          <ExcludeByFile>**/obj/**/*.cs,**/Migrations/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute</ExcludeByAttribute>
+
+          <!-- Auto-property accessors carry no logic; counting them is free coverage. -->
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
