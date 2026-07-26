@@ -11,6 +11,7 @@ using SpanSight.Core.Data;
 using SpanSight.Core.Geo;
 using SpanSight.Core.Ingestion;
 using SpanSight.Core.Ingestion.Validation;
+using SpanSight.Core.Vintages;
 using SpanSight.Ingestion;
 
 var (options, parseError) = CliOptions.Parse(args);
@@ -20,6 +21,21 @@ if (options is null)
     Console.Error.WriteLine();
     Console.Error.WriteLine(CliOptions.Usage);
     return 2;
+}
+
+// convert-vintage is pure file work (ADR-005: history never touches the serving database), so it runs
+// before the host is built and needs no connection string.
+if (options.Command == "convert-vintage")
+{
+    try
+    {
+        return await VintageConvertCommand.RunAsync(options);
+    }
+    catch (VintageFormatException ex)
+    {
+        Console.Error.WriteLine($"Vintage rejected: {ex.Message}");
+        return 1;
+    }
 }
 
 // Content root = binary directory so appsettings.json resolves no matter where the CLI is invoked from.
