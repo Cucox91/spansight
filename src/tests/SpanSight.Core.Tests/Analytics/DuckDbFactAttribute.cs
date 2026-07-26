@@ -21,6 +21,22 @@ public sealed class DuckDbTheoryAttribute : TheoryAttribute
     public DuckDbTheoryAttribute() => Skip = DuckDb.SkipReason;
 }
 
+/// <summary>
+/// For the FR-1.3 tests that run the deterioration job over the committed synthetic CSV rather than
+/// over the era fixtures: those need the DuckDB CLI but no built Parquet, so they can run on a
+/// machine that has never converted a vintage.
+/// </summary>
+public sealed class DuckDbOnlyFactAttribute : FactAttribute
+{
+    public DuckDbOnlyFactAttribute() => Skip = DuckDb.CliSkipReason;
+}
+
+/// <summary>Theory form of <see cref="DuckDbOnlyFactAttribute"/>.</summary>
+public sealed class DuckDbOnlyTheoryAttribute : TheoryAttribute
+{
+    public DuckDbOnlyTheoryAttribute() => Skip = DuckDb.CliSkipReason;
+}
+
 /// <summary>Runs DuckDB the same way <c>tools/trends/build-trends.sh</c> does, from the repo root.</summary>
 internal static class DuckDb
 {
@@ -43,18 +59,23 @@ internal static class DuckDb
     /// is merely missing a build artefact reports that, rather than a confusing DuckDB error.
     /// </summary>
     public static string? SkipReason =>
-        !IsAvailable
-            ? "duckdb is not on PATH; the trend golden tests run where it is (dev Mac / CI). brew install duckdb"
-            : !FixtureParquetExists
-                ? "Fixture Parquet missing — run tools/vintages/convert.sh --fixtures first."
-                : null;
+        CliSkipReason
+        ?? (!FixtureParquetExists
+            ? "Fixture Parquet missing — run tools/vintages/convert.sh --fixtures first."
+            : null);
+
+    /// <summary>Null when the DuckDB CLI is present; the only prerequisite for the CSV-driven jobs.</summary>
+    public static string? CliSkipReason =>
+        IsAvailable
+            ? null
+            : "duckdb is not on PATH; the SQL golden tests run where it is (dev Mac / CI). brew install duckdb";
 
     /// <summary>
     /// Repository root, found by walking up from the test binary until the marker file appears.
     /// The trend SQL takes relative paths (it is meant to be run from the root), so the tests do
     /// the same rather than rewriting the paths and testing something subtly different.
     /// </summary>
-    public static string RepositoryRoot { get; } = FindRepositoryRoot();
+    public static string RepositoryRoot { get; } = RepoPath.Root;
 
     /// <summary>Executes SQL and returns stdout in DuckDB's headerless list format.</summary>
     public static string Run(string sql, string? initFile = null)
@@ -99,25 +120,37 @@ internal static class DuckDb
         return path;
     }
 
+    /// <summary>
+    /// The FR-1.3 job over the same era fixtures — the anti-drift half, running the published SQL.
+    /// </summary>
+    public static string CreateDeteriorationFixtureInitScript() => WriteInitScript(
+        "CREATE OR REPLACE VIEW nbi_source AS SELECT * FROM " +
+        "read_parquet('data/vintages/fixtures-out/parquet/nbi_*.parquet');",
+        Path.Combine("tools", "deterioration", "deterioration.sql"));
+
+    /// <summary>
+    /// The FR-1.3 job over the committed synthetic vintage CSV — the hand-computed half (AC-3).
+    /// Wired exactly as <c>build-deterioration.sh --synthetic</c> wires it, so the test and the script
+    /// cannot drift into reading the fixture differently.
+    /// </summary>
+    public static string CreateSyntheticInitScript() => WriteInitScript(
+        """
+        CREATE OR REPLACE VIEW nbi_source AS SELECT * REPLACE (
+            CAST(VINTAGE_YEAR AS SMALLINT) AS VINTAGE_YEAR, CAST(SOURCE_ROW AS INTEGER) AS SOURCE_ROW)
+          FROM read_csv('src/tests/fixtures/deterioration/synthetic_vintages.csv', all_varchar=true);
+        """,
+        Path.Combine("tools", "deterioration", "deterioration.sql"));
+
+    private static string WriteInitScript(string sourceSql, string relativeSqlPath)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"spansight-sql-test-{Guid.NewGuid():N}.sql");
+        File.WriteAllText(path, sourceSql + "\n" + File.ReadAllText(Path.Combine(RepositoryRoot, relativeSqlPath)));
+        return path;
+    }
+
     /// <summary>True when the fixture Parquet has been built (tools/vintages/convert.sh --fixtures).</summary>
     public static bool FixtureParquetExists =>
         Directory.Exists(Path.Combine(RepositoryRoot, "data", "vintages", "fixtures-out", "parquet"))
         && Directory.EnumerateFiles(
             Path.Combine(RepositoryRoot, "data", "vintages", "fixtures-out", "parquet"), "nbi_*.parquet").Any();
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "SpanSight.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repository root (no SpanSight.slnx above the test binary).");
-    }
 }
