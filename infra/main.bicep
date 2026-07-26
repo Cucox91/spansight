@@ -26,6 +26,13 @@ param budgetContactEmail string
 @description('API image (ghcr.io/...); empty on infra-only deploys — the app deploys once an image exists.')
 param apiImage string = ''
 
+@description('Ask the Map (FR-AI.1) feature flag — deploy passes the AI_ENABLED repo variable (RUNBOOK §9).')
+param aiEnabled bool = false
+
+@description('Anthropic API key from the ANTHROPIC_API_KEY GitHub secret. Empty = provider not registered (endpoint stays dark). @secure: never logged, never in deployment history.')
+@secure()
+param anthropicApiKey string = ''
+
 @description('Custom subdomain hostnames for the SPA (e.g. www.spansights.com). Bound on the SWA; the matching CNAMEs live at the registrar (GoDaddy — RUNBOOK §8). API + storage CORS allowlists extend automatically via spaOrigins.')
 param spaCustomDomains array = []
 
@@ -125,6 +132,8 @@ module containerApp 'modules/container-app.bicep' = if (apiImage != '') {
     postgresFqdn: postgres.outputs.fqdn
     appInsightsConnectionString: appInsights.outputs.connectionString
     corsOrigins: spaOrigins
+    aiEnabled: aiEnabled
+    anthropicApiKey: anthropicApiKey
   }
 }
 

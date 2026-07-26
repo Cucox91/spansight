@@ -73,6 +73,9 @@ jobs:
         env:
           BUDGET_CONTACT_EMAIL: ${{ vars.BUDGET_ALERT_EMAIL }}
           API_IMAGE: ${{ needs.image.outputs.image }}
+          # Ask the Map (FR-AI.1) — unset variable/secret ⇒ the endpoint stays dark (RUNBOOK §9).
+          AI_ENABLED: ${{ vars.AI_ENABLED }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: >
           az deployment sub create
           --name spansight-${{ github.run_id }}

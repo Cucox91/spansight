@@ -15,8 +15,27 @@ param appInsightsConnectionString string
 @description('Allowed CORS origins for the SPA (SWA default hostname + any custom domains).')
 param corsOrigins array
 
+@description('Ask the Map (FR-AI.1) feature flag — deploy passes the AI_ENABLED repo variable (RUNBOOK §9).')
+param aiEnabled bool = false
+
+@description('Anthropic API key from the ANTHROPIC_API_KEY GitHub secret. Empty = provider not registered (endpoint stays dark). @secure: never logged, never in deployment history.')
+@secure()
+param anthropicApiKey string = ''
+
 // Program.cs binds Cors:Origins as string[] — emit one indexed env var per origin.
 var corsEnv = [for (origin, i) in corsOrigins: { name: 'Cors__Origins__${i}', value: origin }]
+
+// FR-AI.1 (RUNBOOK §9): the ACA secret only exists once a key is supplied, so an
+// infra-only deploy declares no secret and the endpoint keeps its dark 503 path.
+var aiSecrets = anthropicApiKey == '' ? [] : [{ name: 'anthropic-api-key', value: anthropicApiKey }]
+var aiEnv = concat(
+  [
+    { name: 'Ai__Enabled', value: aiEnabled ? 'true' : 'false' }
+    { name: 'Ai__Provider', value: 'anthropic' }
+    { name: 'Ai__Model', value: 'claude-haiku-4-5' } // ADR-008 implementation pin
+  ],
+  anthropicApiKey == '' ? [] : [{ name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }]
+)
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -32,6 +51,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 8080
         allowInsecure: false
       }
+      secrets: aiSecrets
     }
     template: {
       containers: [
@@ -52,7 +72,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Database__UseEntraToken', value: 'true' }
             // Standard variable the Azure Monitor OTel distro reads (NFR-6)
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
-          ], corsEnv)
+          ], corsEnv, aiEnv)
           probes: [
             {
               type: 'Liveness'

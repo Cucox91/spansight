@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <!-- Ai:ApiKey lives in user-secrets, never in the repo (NFR-4; RUNBOOK §9.3). -->
+    <UserSecretsId>spansight-api</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Anthropic" />
     <PackageReference Include="Azure.Identity" />
