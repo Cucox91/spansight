@@ -37,6 +37,11 @@ public sealed record CliOptions
                              --file <path>           the vintage's national delimited .txt (required)
                              --snapshot-year <yyyy>  the vintage year the file is claimed to be (required)
                              --out <dir>             output root (default: data/vintages)
+          load-trends      Publish the offline condition-history aggregates (FR-1.2).
+                             --file <dir>            output dir of tools/trends/build-trends.sh
+                                                     (default: data/trends)
+                             --dry-run               read and validate only; no database writes
+                             --force                 re-publish even if this job run id is loaded
           export-geojson   Stream core bridges as GeoJSONSeq for the tile build (tools/build-tiles.sh).
                              --out <path>            output .geojsonl path (required)
           migrate          Apply EF Core migrations to the target database.
@@ -53,7 +58,7 @@ public sealed record CliOptions
         }
 
         var options = new CliOptions { Command = args[0].ToLowerInvariant() };
-        if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage"))
+        if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage" or "load-trends"))
         {
             return (null, $"Unknown command '{args[0]}'.");
         }
@@ -111,6 +116,8 @@ public sealed record CliOptions
             "convert-vintage" when options.File is null => (null, "convert-vintage requires --file."),
             "convert-vintage" when options.SnapshotYear is null => (null, "convert-vintage requires --snapshot-year."),
             "export-geojson" when options.Output is null => (null, "export-geojson requires --out."),
+            // --file defaults to where build-trends.sh writes, so the common case is bare.
+            "load-trends" => (options with { File = options.File ?? Path.Combine("data", "trends") }, null),
             _ => (options, null),
         };
     }
