@@ -14,10 +14,16 @@ namespace SpanSight.Core.Tests.Vintages;
 /// </summary>
 public class VintageFixtureGoldenTests
 {
+    // One entry per published column layout, matching the fixtures on disk and the SRS v1.4
+    // amendment to FR-1.1 AC-3. 2016 (adds CAT10) and 2017 (adds CAT23/CAT29) are the two layouts
+    // that motivated that amendment, so leaving them out of the golden theory would have left the
+    // shell-script conversion in CI as their only coverage.
     public static TheoryData<int, VintageEra, int> Vintages => new()
     {
         { 1992, VintageEra.TenYearRule, 134 },
         { 2010, VintageEra.SufficiencyRating, 133 },
+        { 2016, VintageEra.TenYearRule, 135 },
+        { 2017, VintageEra.TenYearRule, 137 },
         { 2025, VintageEra.PerformanceMeasures, 123 },
     };
 
@@ -36,7 +42,7 @@ public class VintageFixtureGoldenTests
         Assert.Empty(summary.Summary.RejectsByReason);
     }
 
-    public static TheoryData<int> VintageYears => [1992, 2010, 2025];
+    public static TheoryData<int> VintageYears => [1992, 2010, 2016, 2017, 2025];
 
     [Theory]
     [MemberData(nameof(VintageYears))]

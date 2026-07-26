@@ -2,14 +2,17 @@ using System.Text;
 
 using Microsoft.EntityFrameworkCore;
 
+using SpanSight.Core.Analytics;
 using SpanSight.Core.Domain;
 
 namespace SpanSight.Core.Data;
 
 /// <summary>
 /// EF Core model for the serving database (ARCHITECTURE §4.1): canonical <c>core</c> schema,
-/// <c>quarantine</c>, and <c>ops</c> run bookkeeping. Raw staging tables are created by the
-/// ingestion pipeline outside EF; the API and analytics only ever read <c>core</c>.
+/// <c>quarantine</c>, <c>ops</c> run bookkeeping, and the <c>analytics</c> aggregates published by
+/// the offline DuckDB jobs (ADR-005 — compact aggregates only; the full history stays in Parquet).
+/// Raw staging tables are created by the ingestion pipeline outside EF; the API only ever reads
+/// <c>core</c> and <c>analytics</c>.
 /// </summary>
 public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : DbContext(options)
 {
@@ -18,6 +21,12 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
     public DbSet<QuarantineRow> QuarantineRows => Set<QuarantineRow>();
 
     public DbSet<IngestionRun> IngestionRuns => Set<IngestionRun>();
+
+    public DbSet<TrendRun> TrendRuns => Set<TrendRun>();
+
+    public DbSet<BridgeConditionSeries> BridgeConditionSeries => Set<BridgeConditionSeries>();
+
+    public DbSet<ConditionRollup> ConditionRollups => Set<ConditionRollup>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +88,50 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
             entity.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
             entity.Property(r => r.Error).HasMaxLength(2048);
             entity.HasIndex(r => new { r.SourceSha256, r.SnapshotYear });
+        });
+
+        modelBuilder.Entity<TrendRun>(entity =>
+        {
+            entity.ToTable("trend_run", "analytics");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.JobRunId).HasMaxLength(64);
+            entity.Property(r => r.CatalogSha256).HasMaxLength(64);
+            entity.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(r => r.Error).HasMaxLength(2048);
+            entity.HasIndex(r => r.JobRunId).IsUnique();
+        });
+
+        modelBuilder.Entity<BridgeConditionSeries>(entity =>
+        {
+            entity.ToTable("bridge_condition_series", "analytics");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.StateCode).HasMaxLength(2);
+            entity.Property(s => s.StructureNumber).HasMaxLength(32);
+            entity.Property(s => s.Ratings).HasMaxLength(ConditionSeriesCodec.MaxLength);
+            entity.HasOne<TrendRun>().WithMany().HasForeignKey(s => s.TrendRunId);
+
+            // The drawer's only shape: one structure by natural key. Covering the payload keeps it
+            // an index-only scan, so the history fetch never touches the heap (NFR-1).
+            entity.HasIndex(s => new { s.StateCode, s.StructureNumber })
+                .IsUnique()
+                .IncludeProperties(s => new { s.FirstYear, s.LastYear, s.ObservedYears, s.Ratings });
+
+            // Convergence sweep after a load deletes by run; without this it is a full scan.
+            entity.HasIndex(s => s.TrendRunId);
+        });
+
+        modelBuilder.Entity<ConditionRollup>(entity =>
+        {
+            entity.ToTable("condition_rollup", "analytics");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Level).HasConversion<string>().HasMaxLength(8);
+            entity.Property(r => r.Fips).HasMaxLength(5);
+            entity.HasOne<TrendRun>().WithMany().HasForeignKey(r => r.TrendRunId);
+
+            // A trends query is (level, fips) over a year range — the year trails the key so the
+            // range is a scan of contiguous index tuples rather than a filter.
+            entity.HasIndex(r => new { r.Level, r.Fips, r.VintageYear }).IsUnique();
+            entity.HasIndex(r => r.TrendRunId);
         });
 
         // Snake-case column names so hand-written SQL (staging merge, tile export, EXPLAIN

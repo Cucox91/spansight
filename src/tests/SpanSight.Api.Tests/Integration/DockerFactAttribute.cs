@@ -18,4 +18,18 @@ public sealed class DockerFactAttribute : FactAttribute
         Environment.GetEnvironmentVariable("DOCKER_HOST") is not null
         || File.Exists("/var/run/docker.sock")
         || OperatingSystem.IsWindows();
+
+    internal static bool Available => IsDockerAvailable();
+}
+
+/// <summary>Theory form of <see cref="DockerFactAttribute"/>.</summary>
+public sealed class DockerTheoryAttribute : TheoryAttribute
+{
+    public DockerTheoryAttribute()
+    {
+        if (!DockerFactAttribute.Available)
+        {
+            Skip = "Docker is not available on this machine; integration tests run where it is (dev Mac / CI).";
+        }
+    }
 }

@@ -149,6 +149,7 @@ app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.
 // The AI group gets the tight policy; everything else uses the global limiter only.
 var apiGroup = app.MapGroup("/api");
 apiGroup.MapBridges();
+apiGroup.MapTrends();
 apiGroup.MapStats();
 apiGroup.MapLookups();
 apiGroup.MapQa();
