@@ -16,17 +16,21 @@ public sealed record NlFilterSpec(
     IReadOnlyList<string>? Unsupported);
 
 /// <summary>
-/// Structure-type groups as the filter rail presents them. Mirrors <c>TYPE_GROUPS</c> in
-/// <c>web/src/state/filters.ts</c> — keep the two in sync (item 43B design codes).
+/// Structure-type groups as the filter rail presents them, for the FR-AI.1 translator — a
+/// case-insensitive projection of <see cref="SpanSight.Core.Domain.Lookups.NbiCohorts.TypeCodesByGroup"/>,
+/// which is the one C# definition of the item-43B grouping. Model output arrives with unpredictable
+/// casing, so lookups here ignore case while the canonical spelling comes from the group key.
+/// <para>
+/// <c>web/src/state/filters.ts</c> <c>TYPE_GROUPS</c> is the TypeScript copy the SPA needs; the two
+/// are held together by a parity test (FR-1.3 made a third reader of this rule, so it stopped being
+/// a comment and became a test).
+/// </para>
 /// </summary>
 public static class NlTypeGroups
 {
     public static readonly IReadOnlyDictionary<string, string[]> DesignCodesByGroup =
-        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Girder / Stringer"] = ["01", "02", "03", "04", "05", "06", "21", "22"],
-            ["Truss / Arch"] = ["09", "10", "11", "12", "13", "14"],
-            ["Culvert"] = ["19"],
-            ["Other"] = ["00", "07", "08", "15", "16", "17", "18", "20"],
-        };
+        SpanSight.Core.Domain.Lookups.NbiCohorts.TypeCodesByGroup.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value,
+            StringComparer.OrdinalIgnoreCase);
 }
