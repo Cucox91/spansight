@@ -76,16 +76,22 @@ mkdir -p "$OUT_DIR"
 RUN_ID="trends-$(date -u +%Y%m%dT%H%M%SZ)"
 if (( FIXTURES )); then
   CATALOG_SHA="fixtures"
+elif command -v sha256sum >/dev/null 2>&1; then
+  CATALOG_SHA="$(sha256sum "$CATALOG" | cut -d' ' -f1)"          # GNU (Linux)
 else
-  CATALOG_SHA="$(shasum -a 256 "$CATALOG" | cut -d' ' -f1)"
+  CATALOG_SHA="$(shasum -a 256 "$CATALOG" | cut -d' ' -f1)"      # BSD (macOS)
 fi
 
 echo "==> source   $PARQUET_GLOB"
 echo "    run id   $RUN_ID"
 echo "    catalog  ${CATALOG_SHA:0:16}…"
 
-INIT="$(mktemp -t spansight-trends).sql"
-trap 'rm -f "$INIT"' EXIT
+# A temp *directory*, not `mktemp -t <name>`: BSD mktemp accepts a suffix-less template but GNU
+# mktemp requires X's in it, so the -t form fails on Linux (and the version that appended ".sql"
+# to the result also orphaned the file mktemp had actually created).
+INIT_DIR="$(mktemp -d)"
+INIT="$INIT_DIR/init.sql"
+trap 'rm -rf "$INIT_DIR"' EXIT
 {
   echo "CREATE OR REPLACE VIEW nbi_source AS SELECT * FROM read_parquet('$PARQUET_GLOB');"
   cat tools/trends/trends.sql
