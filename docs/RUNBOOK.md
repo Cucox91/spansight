@@ -388,3 +388,87 @@ TRUNCATE analytics.trend_run CASCADE;
 
 The UI degrades to its published empty states — "No published condition history for this
 structure" in the drawer, and an explanatory message on the Trends view. Nothing 500s.
+
+---
+
+## 10.4 Publish the Phase 1 deterioration matrices to the demo (added 2026-07-26)
+
+The cohort transition matrices (FR-1.3) are computed on the dev Mac from the same Parquet set and
+published to the serving Postgres as **aggregates only** — about 7 MB. The 50 M individual
+transitions stay in Parquet (ADR-005).
+
+Like §10.3 this **does** change the live demo: the Patterns view reads these tables. It is additive
+and independent — new tables in the existing `analytics` schema, its own run table, and nothing in
+`core` or in FR-1.2's condition history is touched — so a bad matrix publish cannot take the map or
+the drawer sparkline down with it.
+
+> Everything published here is a descriptive statistic of published ratings at cohort level, and the
+> API refuses to serve a rate for any row below the methodology's sample-size floor. If you are
+> reading this to decide whether to publish, read
+> [`docs/METHODOLOGY-DETERIORATION.md`](./METHODOLOGY-DETERIORATION.md) first — the version it is at
+> is stamped onto every row this load writes.
+
+### Build the matrices **[RAZIEL or CC]** — local only, no cloud
+
+```bash
+tools/deterioration/build-deterioration.sh
+```
+
+It refuses to write anything unless all seven invariants pass (no pair in an unmapped cohort, every
+pair consecutive with both ratings 0–9, row totals equal to their cells, cohort matrices summing to
+the national matrix cell by cell, the national sentinel all-or-nothing, the reserved value unused,
+every row's span able to describe its own pairs), so a green run is the check. It then prints the
+diagnostics the methodology requires be published rather than discovered: the per-component
+unchanged share, how much of the feature the floor suppresses, and every above-floor row whose
+evidence spans five year-pairs or fewer.
+
+The 2026-07-26 run: 33 year-pairs 1992–2025, **19,537,768 structure pairs, 49,988,580 component
+pairs, 303 cohorts, 6,313 matrix rows, 27,842 non-zero cells** — about 30 seconds over the 1.4 GB
+Parquet set.
+
+### Publish it **[RAZIEL]** — the az login is yours
+
+Same Entra-token pattern and firewall dance as §3 and §10.3.
+
+```bash
+az postgres flexible-server firewall-rule create -g rg-spansight-demo -s psql-spansight-demo \
+  --name dev-mac --start-ip-address "$(curl -fsS https://api.ipify.org)" --end-ip-address "$(curl -fsS https://api.ipify.org)"
+
+TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+CONN="Host=psql-spansight-demo.postgres.database.azure.com;Database=spansight;Username=<your-upn-truncated-to-63>;Password=$TOKEN;Ssl Mode=Require;Command Timeout=300"
+
+dotnet run -c Release --project src/SpanSight.Ingestion -- load-deterioration --file data/deterioration --connection "$CONN"
+
+az postgres flexible-server firewall-rule delete -g rg-spansight-demo --server-name psql-spansight-demo --name dev-mac --yes
+```
+
+`load-deterioration` applies pending migrations itself, so no separate migrate step. It took 1.5 s
+locally for the ~34 k rows; expect well under a minute over WAN — this is a far smaller publish than
+§10.3's 1.15 M rows.
+
+Re-running the same job id is a logged no-op. Rebuilding produces a new job id and re-publishes, and
+rows the new job no longer contains are deleted in the same load, so the tables converge rather than
+accumulate (NFR-3).
+
+Verify from the public API, not from the database:
+
+```bash
+curl -s "https://www.spansights.com/api/deterioration/matrix?component=Deck" | jq '{pairs, sampleFloor, methodologyVersion, provenance}'
+curl -s "https://www.spansights.com/api/deterioration/cohorts" | jq '{sampleFloor, cohorts: (.cohorts | length)}'
+```
+
+Expect `yearPairs: 33`, `firstYear: 1992`, `lastYear: 2025`, and a `catalogSha256` matching
+`shasum -a 256 tools/vintages/catalog.json`. A `methodologyVersion` that does not match the version
+at the top of `docs/METHODOLOGY-DETERIORATION.md` means the matrices predate the current method —
+rebuild before publishing.
+
+**Rollback:** the matrices are additive and fully rebuildable. To remove them entirely:
+
+```sql
+-- Cascades to deterioration_matrix_row and deterioration_matrix_cell.
+-- core.bridge and FR-1.2's analytics.trend_run are untouched.
+TRUNCATE analytics.deterioration_run CASCADE;
+```
+
+The Patterns view then renders an empty 10×10 grid with every row marked insufficient, which is its
+published empty state. Nothing 500s, and no other view is affected.

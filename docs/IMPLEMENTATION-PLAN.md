@@ -172,10 +172,10 @@ Demo live at **https://www.spansights.com** (+ apex, both with valid certs; API 
 - [CC] DuckDB trend job (per-bridge year × G/F/P via the Phase 0 classifier) → aggregate tables + EF migration; API endpoints + tests; drawer sparkline + trends view; EXPLAIN pass (NFR-1).
 - **Exit:** FR-1.2 ACs met · golden tests green vs ≥3 hand-checked bridges.
 
-### W4 (wk 10) — FR-1.3 deterioration patterns
+### W4 (wk 10) — FR-1.3 deterioration patterns ✅ **Done 2026-07-26**
 - [CC] Transition-frequency job (type group × material × NOAA climate region) with sample-size floors; unit tests vs hand-computed fixtures; cohort-level UI with adjacent disclaimer.
 - [CW] `docs/METHODOLOGY-DETERIORATION.md` (assumptions, limitations, GR-6 framing) — reviewed with the feature PR.
-- **Exit:** FR-1.3 ACs met · methodology doc merged with the feature, not after it.
+- **Exit:** FR-1.3 ACs met · methodology doc merged with the feature, not after it. **Both met** — RTM FR-1.3 → Done; the doc merged in the feature PR at v1.1, carrying eight corrections and six decisions found by measuring the full 34-vintage set before writing code (SDLC §4 change-log rows; no SRS edit required). Publish procedure: RUNBOOK §10.4.
 
 ### W5 (wk 11) — FR-1.4 + FR-1.5 surface
 - [CC] Rankings + deep-linkable county report card; CSV export with golden-file tests (PDF stays Could); join-coverage metric on the QA page; population-served figures with ACS citation.
