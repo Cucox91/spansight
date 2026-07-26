@@ -150,7 +150,7 @@ Ingest historical NBI files (1992–2025) into Parquet; DuckDB analytical layer.
 
 - AC-1 A `tools/` pipeline converts each annual NBI ASCII vintage (1992–2025) into one normalized Parquet file; per-vintage format quirks are handled in code (documented), and a catalog manifest records source file SHA-256, row counts, and conversion date per vintage.
 - AC-2 Row counts per vintage reconcile with the source files; rows that fail parsing land in a per-vintage reject file with reasons — itemized, never silently dropped.
-- AC-3 Hosted Postgres gains only aggregate tables (ADR-005); the Parquet set lives on the dev machine with a Blob cool-tier archive copy. No bulk historical data in git — per-vintage fixtures only (a few hundred rows, ≤3 vintages).
+- AC-3 Hosted Postgres gains only aggregate tables (ADR-005); the Parquet set lives on the dev machine with a Blob cool-tier archive copy. No bulk historical data in git — per-vintage fixtures only (a few hundred rows each, **one per distinct published column layout**; five across 1992–2025, amended v1.4).
 - AC-4 The DuckDB layer reads the Parquet catalog directly; a documented `tools/` entry point reproduces any published aggregate from a clean checkout plus the Parquet set.
 
 **FR-1.2 — Condition trend views** · Must · Verify: Test + Demo
@@ -281,6 +281,7 @@ Mobile apps · inspection workflow or data entry · load-rating or any engineeri
 | v1.1 | 2026-07-17 | **Scope addition via change control:** Phase 0.5 AI-assist series FR-AI.1–3 (+ G-5, roadmap row, NFR-2 LLM-spend note) per ADR-008. Gated behind Phase 0 core demo; guardrails: GR-6 translation/description-only, schema-constrained outputs, cost caps. |
 | v1.2 | 2026-07-18 | FR-AI.1 acceptance criteria elaborated (AC-1…AC-6) at its build gate per the v1.1 placeholder — schema constrained to the rail predicate, deterministic interpretation, fail-closed guardrails, cost governors, stub-provider test strategy. No new scope; no requirement renumbered. |
 | v1.3 | 2026-07-24 | **Phase 1 slice elaborated at gate 0** per SDLC §3 rolling-wave: FR-1.1–1.5 gain priority, verification method, and acceptance criteria (incl. the GR-6 descriptive-statistics guardrail for FR-1.3 and the NOAA nine-region climate lookup right-sizing the stub's "climate region"). No new scope; no requirement renumbered; Phases 2–3 remain stubs. Status → Baselined at gate 0. |
+| v1.4 | 2026-07-26 | **FR-1.1 AC-3 fixture bound corrected on evidence (P1-W2).** The "≤3 vintages" cap was written when the vintage set was known only from a three-year sample (1992/2010/2025) and one layout per era was assumed. Converting all 34 vintages showed FHWA published **five** distinct column layouts, not three: 2016 adds `CAT10` (135 cols) and 2017–2018 add `CAT23`/`CAT29` (137 cols), and neither is exercised by any of the three sampled years. The cap is therefore restated as **one fixture per distinct published layout** — five today, ~700 KB total, still nowhere near bulk. Rationale: the cap's intent was "keep bulk data out of git" (rule 4), which five 300-row fixtures honour; read literally it would instead have forced CI to leave two real layouts untested. No new scope; no requirement renumbered; no trade required (R-5 unaffected — this narrows risk rather than adding work). |
 
 ---
 

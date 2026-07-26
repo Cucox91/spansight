@@ -110,19 +110,29 @@ public sealed class VintageHeader
 }
 
 /// <summary>
-/// Which era a given vintage year is known to use. Only years verified against the real FHWA file
-/// are pinned — the rest return null, are classified from the file itself, and have their detected
-/// era recorded in the catalog manifest. The full 1992–2025 run (W2) is what pins the remainder;
-/// guessing them here would invent evidence the project does not have.
+/// Which era each vintage year is known to use. Every year 1992–2025 is now pinned from the header
+/// of the real FHWA file, which is what the W2 full run was for — before it, only the three sampled
+/// years (1992, 2010, 2025) were pinned and the rest were classified from the file alone.
+/// <para>
+/// The sequence is <b>not</b> monotonic, which is the point of pinning it from evidence rather than
+/// deriving it from a cutoff year: the 10-year-rule columns are present 1992–2009, <i>absent</i> for
+/// 2010–2011, and <i>present again</i> 2012–2018, before the performance-measures layout drops them
+/// for good in 2019. A "10-year rule era ends at year N" rule would be wrong for seven vintages.
+/// </para>
 /// </summary>
 public static class VintageYearEra
 {
-    private static readonly Dictionary<int, VintageEra> Pinned = new()
+    private static readonly Dictionary<int, VintageEra> Pinned = BuildPinned();
+
+    private static Dictionary<int, VintageEra> BuildPinned()
     {
-        [1992] = VintageEra.TenYearRule,
-        [2010] = VintageEra.SufficiencyRating,
-        [2025] = VintageEra.PerformanceMeasures,
-    };
+        var pinned = new Dictionary<int, VintageEra>();
+        foreach (var year in Enumerable.Range(1992, 2009 - 1992 + 1)) pinned[year] = VintageEra.TenYearRule;
+        foreach (var year in Enumerable.Range(2010, 2011 - 2010 + 1)) pinned[year] = VintageEra.SufficiencyRating;
+        foreach (var year in Enumerable.Range(2012, 2018 - 2012 + 1)) pinned[year] = VintageEra.TenYearRule;
+        foreach (var year in Enumerable.Range(2019, 2025 - 2019 + 1)) pinned[year] = VintageEra.PerformanceMeasures;
+        return pinned;
+    }
 
     public static VintageEra? Expected(int year) => Pinned.TryGetValue(year, out var era) ? era : null;
 

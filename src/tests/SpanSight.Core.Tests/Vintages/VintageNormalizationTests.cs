@@ -54,11 +54,68 @@ public class VintageNormalizationTests
     }
 
     [Fact]
-    public void Unpinned_year_is_classified_from_the_file_rather_than_refused()
+    public void Every_published_vintage_year_is_pinned_to_an_era()
     {
-        // Only 1992/2010/2025 are verified against the real files; the rest are detected and recorded.
-        Assert.Null(VintageYearEra.Expected(2003));
-        Assert.Equal(VintageEra.SufficiencyRating, VintageHeader.Bind(SufficiencyHeader, 2003).Era);
+        // After the W2 full run there are no unpinned years left: all 34 were read from the real files.
+        var unpinned = Enumerable.Range(1992, 2025 - 1992 + 1).Where(y => VintageYearEra.Expected(y) is null).ToList();
+
+        Assert.Empty(unpinned);
+        Assert.Equal(34, VintageYearEra.PinnedYears.Count);
+    }
+
+    [Theory]
+    // The boundaries that a naive "10-year rule ended in year N" cutoff would get wrong.
+    [InlineData(1992, VintageEra.TenYearRule)]
+    [InlineData(2009, VintageEra.TenYearRule)]
+    [InlineData(2010, VintageEra.SufficiencyRating)]   // the 10-yr-rule columns vanish…
+    [InlineData(2011, VintageEra.SufficiencyRating)]
+    [InlineData(2012, VintageEra.TenYearRule)]         // …and come back for seven more vintages
+    [InlineData(2018, VintageEra.TenYearRule)]
+    [InlineData(2019, VintageEra.PerformanceMeasures)]
+    [InlineData(2025, VintageEra.PerformanceMeasures)]
+    public void Pinned_era_sequence_is_not_monotonic(int year, VintageEra expected) =>
+        Assert.Equal(expected, VintageYearEra.Expected(year));
+
+    [Fact]
+    public void A_year_pinned_to_another_era_is_refused_even_mid_series()
+    {
+        // 2012 looks like it "should" be the sufficiency era by year alone; the file says otherwise.
+        var ex = Assert.Throws<VintageFormatException>(() => VintageHeader.Bind(SufficiencyHeader, 2012));
+
+        Assert.Contains("nothing was converted", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_2016_to_2018_cat_columns_bind_as_themselves()
+    {
+        // 2017/2018 append CAT10/CAT23/CAT29. They are the 2019+ trio under FHWA's older opaque
+        // names, but the Parquet stays a faithful copy: they bind as themselves and are NOT
+        // renamed into BRIDGE_CONDITION/LOWEST_RATING/DECK_AREA. catalog.sql does the coalescing.
+        var header = VintageHeader.Bind(TenYearRuleHeader + ",CAT10,CAT23,CAT29", 2017);
+        var row = VintageConverter.Normalize("01,ABC123,7,88.5,1,G,7,250.0", 2, header).Values!;
+
+        Assert.Equal("G", row[IndexOf("CAT10")]);
+        Assert.Equal("7", row[IndexOf("CAT23")]);
+        Assert.Equal("250.0", row[IndexOf("CAT29")]);
+
+        // The readable names stay NULL for this era — that gap is exactly why catalog.sql coalesces.
+        Assert.Null(row[IndexOf("BRIDGE_CONDITION")]);
+        Assert.Null(row[IndexOf("LOWEST_RATING")]);
+        Assert.Null(row[IndexOf("DECK_AREA")]);
+    }
+
+    [Fact]
+    public void Every_cat_column_declares_the_successor_it_is_the_predecessor_of()
+    {
+        // Guards the mapping catalog.sql relies on: if a CAT column is added or renamed here
+        // without a successor, the coalesced 2016-2025 series would silently lose a vintage.
+        foreach (var (cat, successor) in VintageSchema.CatColumnSuccessors)
+        {
+            Assert.Contains(cat, VintageSchema.Columns);
+            Assert.Contains(successor, VintageSchema.Columns);
+        }
+
+        Assert.Equal(3, VintageSchema.CatColumnSuccessors.Count);
     }
 
     [Fact]
@@ -84,7 +141,7 @@ public class VintageNormalizationTests
     public void A_column_one_era_lacks_normalizes_to_null_in_the_same_position()
     {
         // The superset promise: identical columns in identical order whichever era produced the row.
-        var older = VintageHeader.Bind(SufficiencyHeader, 2003);
+        var older = VintageHeader.Bind(SufficiencyHeader, 2010);
         var newer = VintageHeader.Bind(PerformanceHeader, 2025);
 
         var olderRow = VintageConverter.Normalize("01,ABC123,7,88.5,A", 2, older).Values!;
@@ -105,7 +162,7 @@ public class VintageNormalizationTests
     [Fact]
     public void Absent_columns_are_reported_for_the_manifest()
     {
-        var header = VintageHeader.Bind(SufficiencyHeader, 2003);
+        var header = VintageHeader.Bind(SufficiencyHeader, 2010);
 
         Assert.Contains("BRIDGE_CONDITION", header.AbsentColumns);
         Assert.DoesNotContain("SUFFICIENCY_RATING", header.AbsentColumns);

@@ -11,7 +11,9 @@ namespace SpanSight.Core.Vintages;
 /// The list is deliberately explicit rather than discovered at run time: an unknown column in a
 /// source file is a schema change that deserves a human decision, so
 /// <see cref="VintageHeader.Bind"/> fails loudly instead of silently dropping it.
-/// Verified 2026-07-25 against the real FHWA national files for 1992, 2010 and 2025.
+/// Verified 2026-07-26 against the real FHWA national files for all 34 vintages, 1992–2025:
+/// five distinct published layouts, and exactly three columns (<c>CAT10</c>, <c>CAT23</c>,
+/// <c>CAT29</c>) that the 1992/2010/2025 sample had not seen.
 /// </para>
 /// </summary>
 public static class VintageSchema
@@ -158,7 +160,40 @@ public static class VintageSchema
         "SUFFICIENCY_RATING",
         "STATUS_WITH_10YR_RULE",
         "STATUS_NO_10YR_RULE",
+
+        // FHWA's computed "category" fields, published only in 2016 (CAT10) and 2017–2018 (all three).
+        // They are the same three quantities the 2019+ layout publishes under readable names, which
+        // was verified against the real files rather than assumed (see VintageCatColumns).
+        "CAT10",
+        "CAT23",
+        "CAT29",
     ];
+
+    /// <summary>
+    /// The 2016–2018 computed columns and the 2019+ column each one is the predecessor of.
+    /// <para>
+    /// FHWA published these three under opaque names before the performance-measures layout gave
+    /// them readable ones. They are carried as themselves — the vintage Parquet is a faithful copy
+    /// of published text, so nothing is silently renamed into <c>BRIDGE_CONDITION</c> — and the
+    /// DuckDB catalog (<c>tools/vintages/catalog.sql</c>) is where the two names are coalesced into
+    /// one continuous 2016–2025 series, deliberately and visibly.
+    /// </para>
+    /// <para>
+    /// Equivalence verified 2026-07-26 against the real 2017/2018/2019 national files:
+    /// <c>CAT10</c> agreed with FHWA's Good/Fair/Poor rule over items 58/59/60/62 on 299,947 of
+    /// 299,947 rows carrying condition data; <c>CAT23</c> agreed with the minimum of those same four
+    /// items on 299,947 of 299,947; <c>CAT29</c> matched <c>DECK_AREA</c>'s distribution (identical
+    /// maximum, 284,739) at a median ratio of exactly 1.0000 to
+    /// <c>STRUCTURE_LEN_MT_049 × DECK_WIDTH_MT_052</c>, so it carries the same square metres.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> CatColumnSuccessors =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["CAT10"] = "BRIDGE_CONDITION",
+            ["CAT23"] = "LOWEST_RATING",
+            ["CAT29"] = "DECK_AREA",
+        };
 
     /// <summary>Columns the converter refuses to run without — identity and provenance keys.</summary>
     public static readonly IReadOnlyList<string> Required =

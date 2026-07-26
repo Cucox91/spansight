@@ -278,3 +278,49 @@ Then the real thing: **https://www.spansights.com** → Ask the Map → same phr
 RTM FR-AI.1 → **Done** with this smoke as evidence + CLAUDE.md status line ([CC] task) · check the Anthropic console usage page after a few days (spend ≈ pennies; the 200/day budget and cache are doing their jobs) · Azure spend unchanged (no new resources).
 
 **Rollback:** set `AI_ENABLED` = `false` → run **Deploy** → endpoint back to its dark 503 path, SPA shows the built-in notice. Key compromise: revoke in the Anthropic console first, then rotate the GitHub secret.
+
+## 10. Phase 1 data ops — the vintage Parquet archive (added 2026-07-26)
+
+The 34-vintage NBI history (1992–2025) is built on the dev Mac and archived to Blob cool tier. It
+never touches the serving database: the historical set lives in Parquet and is read by DuckDB
+(ADR-005), so **nothing in this section affects the live demo**. Both commands are safe to re-run.
+
+### 10.1 Build the Parquet set **[RAZIEL or CC]**
+
+```bash
+tools/vintages/download.sh    # ~1.6 GB of zips from FHWA; skips what it already has
+tools/vintages/convert.sh     # → data/vintages/parquet/ (~1.4 GB) + tools/vintages/catalog.json
+```
+
+`convert.sh` fails loudly if any vintage does not reconcile, so a green run is the check. Confirm
+with a query rather than by eye:
+
+```bash
+duckdb -init tools/vintages/catalog.sql -c "SELECT bool_and(reconciles) FROM nbi_reconciliation"
+```
+
+The 2026-07-26 run: 22,307,363 source rows = 22,307,362 converted + 1 rejected, all 34 reconciling.
+
+### 10.2 Archive it **[RAZIEL]** — the az login is yours
+
+```bash
+tools/vintages/archive-to-blob.sh --dry-run    # lists 34 files + catalog.json, contacts nothing
+tools/vintages/archive-to-blob.sh              # uploads to stspansightdemo/parquet-archive (Cool)
+```
+
+The script never runs `az login`; it fails with instructions if you are not already logged in
+(CLAUDE.md rule 2 — account actions stay with you). The `parquet-archive` container and its
+cool-tier lifecycle rule are already declared in `infra/modules/storage.bicep`, so this needs no
+deploy and adds no resource — only ~1.4 GB of cool-tier blobs, well under a dollar a month against
+the $50 budget (NFR-2).
+
+Verify:
+
+```bash
+az storage blob list --account-name stspansightdemo --container-name parquet-archive \
+  --auth-mode key --query "length(@)"     # expect 35: 34 vintages + catalog.json
+```
+
+**Rollback / cost-out:** the set is fully reproducible from FHWA with §10.1, so deleting the
+container costs nothing but the rebuild time. `az storage blob delete-batch --account-name
+stspansightdemo --source parquet-archive --auth-mode key`.
