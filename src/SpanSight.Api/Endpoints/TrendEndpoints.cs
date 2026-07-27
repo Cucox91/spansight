@@ -128,6 +128,20 @@ public static class TrendEndpoints
             .OrderBy(r => r.VintageYear)
             .ToListAsync(cancellationToken);
 
+        // Replace the synthesized county label with the Census name once the FR-1.5 join has
+        // published one. Deliberately a lookup rather than a join on the rollups: the rollups are
+        // keyed on the county code item 3 published, and where TIGER no longer carries that code
+        // there simply is no Census name — the label must degrade to "County FIPS 003, Connecticut"
+        // rather than the row disappearing.
+        var name = parsed.Name;
+        if (parsed.Level == RollupLevel.County)
+        {
+            name = await db.CensusCounties.AsNoTracking()
+                .Where(c => c.CountyFips == parsed.Fips)
+                .Select(c => c.NameLsad)
+                .FirstOrDefaultAsync(cancellationToken) ?? parsed.Name;
+        }
+
         TrendProvenanceDto? provenance = null;
         if (rows.Count > 0)
         {
@@ -145,7 +159,7 @@ public static class TrendEndpoints
         return TypedResults.Ok(new TrendSeriesDto(
             parsed.Level.ToString(),
             parsed.Fips,
-            parsed.Name,
+            name,
             parsed.FromYear,
             parsed.ToYear,
             points,
@@ -224,8 +238,11 @@ public static class TrendEndpoints
             else
             {
                 resolvedFips = trimmedFips;
-                // County names arrive with the TIGER join (FR-1.5, W5). Until then the label says
-                // exactly what it knows rather than inventing a name.
+                // The fallback label, used when the TIGER join has not been published or does not
+                // carry this code — which is a real case, not a hypothetical: item 3 still publishes
+                // Connecticut's eight legacy county codes that TIGER replaced with nine planning
+                // regions, so those five thousand structures have a published county with no Census
+                // name. The caller replaces this with the real name where one exists (FR-1.5).
                 name = $"County FIPS {trimmedFips[2..]}, {countyState.Name}";
             }
         }

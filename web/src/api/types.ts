@@ -253,6 +253,63 @@ export interface QaSummary {
   latestRun: IngestionRun | null
   byReason: Array<{ reason: string; count: number }>
   byState: Array<{ stateCode: string; state: string; count: number }>
+  /** FR-1.5 AC-2. Null until the county join has been published — not zero coverage. */
+  countyJoin: CountyJoinCoverage | null
+}
+
+// ============ CENSUS COUNTY JOIN (FR-1.5) ============
+
+export interface CountyJoinMissReason {
+  reason: string
+  structures: number
+  /** Null when every miss in this group fell outside the job's bounded search radius. */
+  medianDistanceMeters: number | null
+  maxDistanceMeters: number | null
+}
+
+export interface CountyJoinDisagreement {
+  nbiCountyFips: string | null
+  /** Null when the boundary file no longer carries the published code — the Connecticut case. */
+  nbiCountyName: string | null
+  countyFips: string
+  countyName: string
+  kind: string
+  bridges: number
+  /** Null when no county code was published at all, since the question does not apply. */
+  nbiFipsInTiger: boolean | null
+}
+
+/**
+ * FR-1.5 AC-2 join coverage. Two denominators travel together on purpose: `structures` is NBI
+ * record type 1 — what "bridge" means in the trend and pattern views — while `bridges` is every
+ * row the serving table holds, including the routes published *under* a structure.
+ */
+export interface CountyJoinCoverage {
+  bridges: number
+  matched: number
+  unmatched: number
+  coveragePercent: number
+  structures: number
+  structuresMatched: number
+  structureCoveragePercent: number
+  agree: number
+  agreePercent: number | null
+  differentCountySameState: number
+  differentState: number
+  countyNotPublished: number
+  counties: number
+  countiesWithoutPopulation: number
+  missesByReason: CountyJoinMissReason[]
+  largestDisagreements: CountyJoinDisagreement[]
+  bridgesUnderRetiredCodes: number
+  methodNote: string
+  provenance: {
+    jobRunId: string
+    catalogSha256: string
+    methodVersion: string
+    containmentPredicate: string
+    completedUtc: string | null
+  }
 }
 
 export interface Lookups {

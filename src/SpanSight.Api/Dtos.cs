@@ -301,7 +301,76 @@ public sealed record IngestionRunDto(
 public sealed record QaSummaryDto(
     IngestionRunDto? LatestRun,
     IReadOnlyList<ReasonCountDto> ByReason,
-    IReadOnlyList<StateCountDto> ByState);
+    IReadOnlyList<StateCountDto> ByState,
+    CountyJoinCoverageDto? CountyJoin);
+
+// FR-1.5 AC-2 — the bridge→county join coverage, published on the QA page beside the ingestion
+// rejects because it is the same kind of fact: a measured share of the served inventory that the
+// product could not place, itemised rather than rounded away.
+
+/// <summary>
+/// How many quarantined misses share one reason, and how far from a county they fell.
+/// <c>NearestDistanceMeters</c> is null where no county lay inside the job's bounded search radius —
+/// "not looked far enough to say", which is a different fact from "no county nearby".
+/// </summary>
+public sealed record CountyJoinMissReasonDto(
+    string Reason,
+    int Structures,
+    long? MedianDistanceMeters,
+    long? MaxDistanceMeters);
+
+/// <summary>
+/// One (published county code → containing polygon) pair that disagrees.
+/// <c>NbiFipsInTiger</c> false is the fact that explains most disagreement — the published code
+/// names a county the boundary file no longer carries. Null when no code was published at all, since
+/// the question does not apply.
+/// </summary>
+public sealed record CountyJoinDisagreementDto(
+    string? NbiCountyFips,
+    string? NbiCountyName,
+    string CountyFips,
+    string CountyName,
+    string Kind,
+    int Bridges,
+    bool? NbiFipsInTiger);
+
+public sealed record CountyJoinProvenanceDto(
+    string JobRunId,
+    string CatalogSha256,
+    string MethodVersion,
+    string ContainmentPredicate,
+    DateTimeOffset? CompletedUtc);
+
+/// <summary>
+/// FR-1.5 AC-2: the share of bridges matched to a county polygon, with the misses itemised.
+/// <para>
+/// Two denominators are published, not one. <see cref="Structures"/> counts NBI record type 1 — the
+/// structure itself, and what "bridge" means in FR-1.2 and FR-1.3 — while <see cref="Bridges"/>
+/// counts every row the serving table holds, including the route records published *under* a
+/// structure. Quoting only the first would understate what was measured; only the second would
+/// answer a different question than AC-2 asks.
+/// </para>
+/// </summary>
+public sealed record CountyJoinCoverageDto(
+    long Bridges,
+    long Matched,
+    long Unmatched,
+    double CoveragePercent,
+    long Structures,
+    long StructuresMatched,
+    double StructureCoveragePercent,
+    long Agree,
+    double? AgreePercent,
+    long DifferentCountySameState,
+    long DifferentState,
+    long CountyNotPublished,
+    int Counties,
+    int CountiesWithoutPopulation,
+    IReadOnlyList<CountyJoinMissReasonDto> MissesByReason,
+    IReadOnlyList<CountyJoinDisagreementDto> LargestDisagreements,
+    long BridgesUnderRetiredCodes,
+    string MethodNote,
+    CountyJoinProvenanceDto Provenance);
 
 public sealed record LookupsDto(
     IReadOnlyList<LookupsDto.StateDto> States,
