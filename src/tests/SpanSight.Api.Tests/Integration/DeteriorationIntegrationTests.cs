@@ -298,16 +298,68 @@ public class DeteriorationIntegrationTests(PostgisApiFixture fixture)
             matrix.GetProperty("provenance").GetProperty("jobRunId").GetString());
     }
 
-    /// <summary>The caption's number is measured on the matrix being returned, so it cannot disagree with it.</summary>
+    /// <summary>
+    /// The caption's number is measured on the matrix being returned, so it cannot disagree with it —
+    /// and it is measured over the above-floor rows only.
+    /// <para>
+    /// The Deck cohort has 150 pairs across three rows, but the 49-pair row is suppressed, so the
+    /// share is the diagonal of the other two: (50 + 40) / (51 + 50) = 89.1%, not the 90.0% a
+    /// whole-matrix computation gives. A caption that averaged in suppressed evidence would be
+    /// publishing a rate the same response declined to publish cell by cell.
+    /// </para>
+    /// </summary>
     [DockerFact]
-    public async Task The_cadence_caption_reports_this_matrix_own_unchanged_share()
+    public async Task The_cadence_caption_reports_the_share_of_the_rows_that_clear_the_floor()
     {
         var deck = await GetJsonAsync($"/api/deterioration/matrix?component=Deck&{Cohort}");
-        Assert.Equal(90.0, deck.GetProperty("unchangedShare").GetDouble(), 1);
-        Assert.Contains("90.0%", deck.GetProperty("cadenceCaption").GetString());
 
+        Assert.Equal(89.1, deck.GetProperty("unchangedShare").GetDouble(), 1);
+        Assert.Contains("89.1%", deck.GetProperty("cadenceCaption").GetString());
+        Assert.Contains("above the sample-size floor", deck.GetProperty("cadenceCaption").GetString());
+    }
+
+    /// <summary>
+    /// AC-3's last hiding place. The Culvert fixture holds 10 pairs against a floor of 50, so every
+    /// row is suppressed — and the matrix-level share must be suppressed with them. Computed over the
+    /// whole matrix it would be 100.0%, which is exactly the diagonal rate of the one row the
+    /// response just returned as null: a page that says "insufficient data" ten times and then states
+    /// a percentage. In the 2026-07-26 build 395 of 1,028 cohort matrices are in this state.
+    /// </summary>
+    [DockerFact]
+    public async Task A_matrix_with_no_row_above_the_floor_publishes_no_share_at_all()
+    {
         var culvert = await GetJsonAsync("/api/deterioration/matrix?component=Culvert");
-        Assert.Equal(100.0, culvert.GetProperty("unchangedShare").GetDouble(), 1);
+
+        Assert.Equal(10, culvert.GetProperty("pairs").GetInt32());
+        Assert.All(culvert.GetProperty("rows").EnumerateArray(),
+            r => Assert.False(r.GetProperty("sufficient").GetBoolean()));
+
+        Assert.Equal(JsonValueKind.Null, culvert.GetProperty("unchangedShare").ValueKind);
+
+        // Not a number anywhere in the caption, and not the word "None" standing where one belongs.
+        var caption = culvert.GetProperty("cadenceCaption").GetString()!;
+        Assert.DoesNotContain('%', caption);
+        Assert.Contains("no share is stated", caption);
+
+        // The whole response body carries no percentage for a matrix this thin.
+        var body = await (await fixture.Client.GetAsync("/api/deterioration/matrix?component=Culvert"))
+            .Content.ReadAsStringAsync();
+        Assert.DoesNotContain("100.0", body);
+    }
+
+    /// <summary>
+    /// The method note states the range of the run being served, not a hardcoded one. The fixture is
+    /// 2020–2023; a note claiming 1992–2025 beside provenance saying three vintage pairs would be the
+    /// AC-4 artefact contradicting the numbers it travels with.
+    /// </summary>
+    [DockerFact]
+    public async Task The_method_note_states_the_serving_run_vintage_range()
+    {
+        var matrix = await GetJsonAsync("/api/deterioration/matrix?component=Deck");
+        var method = matrix.GetProperty("method").GetString()!;
+
+        Assert.Contains("2020–2023", method);
+        Assert.DoesNotContain("1992", method);
     }
 
     [DockerFact]
@@ -326,6 +378,12 @@ public class DeteriorationIntegrationTests(PostgisApiFixture fixture)
     [DockerTheory]
     [InlineData("/api/deterioration/matrix", "component")]
     [InlineData("/api/deterioration/matrix?component=Girders", "component")]
+    // Enum.TryParse accepts any numeric string and yields an undefined enum value, so without an
+    // IsDefined check these returned 200 with a fabricated family label over an empty grid —
+    // indistinguishable from a real family that published nothing.
+    [InlineData("/api/deterioration/matrix?component=99", "component")]
+    [InlineData("/api/deterioration/matrix?component=0", "component")]
+    [InlineData("/api/deterioration/matrix?component=-3", "component")]
     [InlineData("/api/deterioration/matrix?component=Deck&typeGroup=Culvert", "typeGroup")]
     [InlineData("/api/deterioration/matrix?component=Deck&typeGroup=Nope&materialGroup=Steel&region=West", "typeGroup")]
     [InlineData("/api/deterioration/matrix?component=Deck&typeGroup=Culvert&materialGroup=Nope&region=West", "materialGroup")]

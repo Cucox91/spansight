@@ -23,23 +23,45 @@ public static class DeteriorationEndpoints
     /// Stated next to every matrix the API returns and rendered in the UI beside the grid, so the
     /// method travels with the numbers rather than living only in a doc (GR-6, FR-1.3 AC-4).
     /// </summary>
-    public const string MethodNote =
+    public const string MethodNoteTemplate =
         "Counts of how often bridges in this cohort were published at one NBI condition rating in a " +
-        "given year and another the next, pooled across consecutive vintages 1992–2025. Ratings are " +
+        "given year and another the next, pooled across{0}. Ratings are " +
         "items 58 (deck), 59 (superstructure), 60 (substructure) and 62 (culvert), each its own " +
         "matrix; a year FHWA did not publish is a gap and is never bridged, and rating improvements " +
         "are kept exactly as published. A descriptive history of published inspection ratings at " +
         "cohort level — not a prediction for any structure, and not engineering advice.";
 
     /// <summary>
+    /// The method note for the run being served. The vintage range comes from the run rather than
+    /// being hardcoded: a job published over part of the catalog — a re-run limited to recent
+    /// vintages, a rollback to an older job, or the CI fixture, which is 2020–2023 — would otherwise
+    /// ship a claim of 34 pooled vintages next to provenance saying three (FR-1.3 AC-4).
+    /// </summary>
+    public static string MethodNote(DeteriorationRun? run) => string.Format(
+        System.Globalization.CultureInfo.InvariantCulture,
+        MethodNoteTemplate,
+        run is null ? " the published consecutive vintages" : $" consecutive vintages {run.FirstYear}–{run.LastYear}");
+
+    /// <summary>
     /// The methodology §6.1 caveat. Rendered adjacent to every matrix, carrying that matrix's own
     /// measured unchanged share rather than a generic hand-wave.
     /// </summary>
     public const string CadenceCaptionTemplate =
-        "{0} of these transitions show no change. NBI structures are typically re-inspected on a " +
-        "~24-month cycle and intermediate annual files carry the last inspection forward, so many " +
-        "\"no change\" observations reflect no new inspection rather than measured stability — which " +
-        "means the off-diagonal figures understate true annual change.";
+        "{0} of the transitions in rows above the sample-size floor show no change. NBI structures are " +
+        "typically re-inspected on a ~24-month cycle and intermediate annual files carry the last " +
+        "inspection forward, so many \"no change\" observations reflect no new inspection rather than " +
+        "measured stability — which means the off-diagonal figures understate true annual change.";
+
+    /// <summary>
+    /// The same caveat for a matrix with no row above the floor. The share is itself a rate, so it is
+    /// suppressed with the others rather than being published from evidence the response just
+    /// declined to rate (FR-1.3 AC-3).
+    /// </summary>
+    public const string CadenceCaptionWithoutShare =
+        "No row here holds enough transitions to publish a rate, so no share is stated. NBI structures " +
+        "are typically re-inspected on a ~24-month cycle and intermediate annual files carry the last " +
+        "inspection forward, so many \"no change\" observations reflect no new inspection rather than " +
+        "measured stability — which means off-diagonal movement is understated wherever it is shown.";
 
     /// <summary>Where the published method lives, served with every response so a view cannot omit it.</summary>
     public const string MethodologyUrl =
@@ -77,7 +99,7 @@ public static class DeteriorationEndpoints
         SpanSightDbContext db,
         CancellationToken cancellationToken = default)
     {
-        var run = await ServingRunAsync(db, cancellationToken);
+        var run = await ServingRunAsync(db, preferredRunId: null, cancellationToken);
 
         var grouped = await db.DeteriorationMatrixRows.AsNoTracking()
             .GroupBy(r => new { r.Component, r.TypeGroup, r.MaterialGroup, r.Region })
@@ -113,7 +135,7 @@ public static class DeteriorationEndpoints
             Dimensions,
             cohorts,
             run?.SampleFloor ?? DefaultSampleFloor,
-            MethodNote,
+            MethodNote(run),
             run?.MethodologyVersion ?? "unpublished",
             MethodologyUrl,
             Provenance(run)));
@@ -132,15 +154,18 @@ public static class DeteriorationEndpoints
             return TypedResults.ValidationProblem(errors);
         }
 
-        var run = await ServingRunAsync(db, cancellationToken);
-        var floor = run?.SampleFloor ?? DefaultSampleFloor;
-
         var rows = await db.DeteriorationMatrixRows.AsNoTracking()
             .Where(r => r.Component == query.Component
                      && r.TypeGroup == query.TypeGroup
                      && r.MaterialGroup == query.MaterialGroup
                      && r.Region == query.Region)
             .ToListAsync(cancellationToken);
+
+        // The run comes from the rows being returned, so the floor applied is the floor they were
+        // computed under. An empty cohort has no row to ask, and falls back to the serving run.
+        var run = await ServingRunAsync(
+            db, rows.Count > 0 ? rows[0].DeteriorationRunId : null, cancellationToken);
+        var floor = run?.SampleFloor ?? DefaultSampleFloor;
 
         var cells = await db.DeteriorationMatrixCells.AsNoTracking()
             .Where(c => c.Component == query.Component
@@ -183,15 +208,33 @@ public static class DeteriorationEndpoints
         }
 
         var pairs = rows.Sum(r => r.RowTotal);
-        var unchanged = cells.Where(c => c.FromRating == c.ToRating).Sum(c => c.Pairs);
 
-        // Measured on the matrix actually being returned, so the caption can never disagree with the
-        // grid beside it (methodology §6.1).
-        var unchangedShare = pairs == 0 ? (double?)null : Math.Round(100d * unchanged / pairs, 1);
-        var caption = string.Format(
-            System.Globalization.CultureInfo.InvariantCulture,
-            CadenceCaptionTemplate,
-            unchangedShare is null ? "None" : $"{unchangedShare:0.0}%");
+        // The unchanged share is a rate, so the floor applies to it too.
+        //
+        // It is measured over the rows that clear the floor and nothing else. Computing it across the
+        // whole matrix would publish a percentage for evidence the very same response just suppressed:
+        // in the 2026-07-26 build 395 of 1,028 cohort matrices have every row below the floor, 199 of
+        // those would emit exactly "100.0%", and 56 rest on a single pair — and where a matrix has one
+        // populated row, that percentage is byte for byte the P[i][i] the response returned as null.
+        // A page cannot say "insufficient data" ten times and then state a rate (FR-1.3 AC-3).
+        var sufficientRows = rows.Where(r => r.RowTotal >= floor).ToList();
+        var ratedPairs = sufficientRows.Sum(r => r.RowTotal);
+        var sufficientRatings = sufficientRows.Select(r => r.FromRating).ToHashSet();
+        var unchanged = cells
+            .Where(c => c.FromRating == c.ToRating && sufficientRatings.Contains(c.FromRating))
+            .Sum(c => c.Pairs);
+
+        var unchangedShare = ratedPairs == 0 ? (double?)null : Math.Round(100d * unchanged / ratedPairs, 1);
+
+        // With no above-floor row there is no share to state, so the caveat ships without one rather
+        // than with a word ("None") standing where a percentage belongs — which read as "every
+        // transition changed" for a matrix that may have observed nothing at all.
+        var caption = unchangedShare is null
+            ? CadenceCaptionWithoutShare
+            : string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                CadenceCaptionTemplate,
+                $"{unchangedShare:0.0}%");
 
         var cohortComponents = new List<CohortComponentDto>
         {
@@ -208,7 +251,7 @@ public static class DeteriorationEndpoints
             floor,
             dto.Count(r => !r.Sufficient),
             unchangedShare,
-            MethodNote,
+            MethodNote(run),
             caption,
             run?.MethodologyVersion ?? "unpublished",
             MethodologyUrl,
@@ -225,16 +268,23 @@ public static class DeteriorationEndpoints
     /// provenance off the rows it returned.
     /// </para>
     /// </summary>
-    private static async Task<DeteriorationRun?> ServingRunAsync(SpanSightDbContext db, CancellationToken cancellationToken)
+    private static async Task<DeteriorationRun?> ServingRunAsync(
+        SpanSightDbContext db, long? preferredRunId, CancellationToken cancellationToken)
     {
-        var runId = await db.DeteriorationMatrixRows.AsNoTracking()
+        // Prefer the run stamped on the rows just fetched, as FR-1.2 does. The sample-size floor and
+        // the methodology version live on the run precisely so they can change, so reading them from
+        // a different run than the data would suppress rates that were published as sufficient, or
+        // attribute matrices to a document version they were never computed under.
+        var runId = preferredRunId ?? await db.DeteriorationMatrixRows.AsNoTracking()
             .OrderByDescending(r => r.DeteriorationRunId)
             .Select(r => (long?)r.DeteriorationRunId)
             .FirstOrDefaultAsync(cancellationToken);
 
         return runId is null
             ? null
-            : await db.DeteriorationRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == runId, cancellationToken);
+            : await db.DeteriorationRuns.AsNoTracking()
+                .FirstOrDefaultAsync(
+                    r => r.Id == runId && r.Status == DeteriorationRunStatus.Completed, cancellationToken);
     }
 
     private static DeteriorationProvenanceDto? Provenance(DeteriorationRun? run) =>
@@ -279,9 +329,18 @@ public static class DeteriorationEndpoints
         errors = [];
         query = default;
 
-        var parsedComponent = Enum.TryParse<ConditionComponent>(component?.Trim(), ignoreCase: true, out var c)
-            ? c
-            : (ConditionComponent?)null;
+        // The component must be a name. Enum.TryParse also accepts the underlying number, which gives
+        // two problems: an undefined value like 99 parses and would return 200 with a fabricated
+        // family label over an empty grid — indistinguishable from a real family that published
+        // nothing — and a defined one like 2 becomes an undocumented second spelling of
+        // "Superstructure", making the OpenAPI contract untrue. Digits are rejected outright.
+        var trimmedComponent = component?.Trim();
+        var parsedComponent = trimmedComponent is { Length: > 0 }
+            && !trimmedComponent.Any(ch => char.IsAsciiDigit(ch) || ch is '-' or '+')
+            && Enum.TryParse<ConditionComponent>(trimmedComponent, ignoreCase: true, out var c)
+            && Enum.IsDefined(c)
+                ? c
+                : (ConditionComponent?)null;
 
         if (parsedComponent is null)
         {

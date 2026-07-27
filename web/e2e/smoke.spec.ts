@@ -199,11 +199,13 @@ test.describe('deterioration patterns (FR-1.3)', () => {
     const region = page.getByRole('region', { name: /Girder \/ Stringer · Steel · Northeast, Deck/ })
     await expect(region).toBeVisible({ timeout: 20_000 })
 
-    // Sample sizes are always visible (AC-1): the three fixture rows, by their totals.
+    // Sample sizes are always visible (AC-1): the three fixture rows, by their totals. Addressed by
+    // from-rating rather than by text — "insufficient data (n < 50)" contains "50", so a bare
+    // toContainText('50') is satisfied by the very rows it is meant to distinguish from.
     const table = region.getByRole('table')
-    await expect(table).toContainText('51')
-    await expect(table).toContainText('50')
-    await expect(table).toContainText('49')
+    await expect(table.locator('tr[data-from-rating="5"] td.n').first()).toContainText('51')
+    await expect(table.locator('tr[data-from-rating="7"] td.n').first()).toContainText('50')
+    await expect(table.locator('tr[data-from-rating="6"] td.n').first()).toContainText('49')
 
     // An above-floor row publishes rates.
     await expect(table).toContainText('80.0%')
@@ -252,17 +254,64 @@ test.describe('deterioration patterns (FR-1.3)', () => {
       region.getByRole('link', { name: /Read the full methodology/ }),
     ).toHaveAttribute('href', /METHODOLOGY-DETERIORATION\.md$/)
 
+    // The row's observed span — with all 33 year-pairs pooled this is the only thing standing between
+    // a pooled cell and a misleading label (methodology §4/§6.8), so it is asserted in the DOM.
+    const populated = region.locator('tr[data-from-rating="5"] td.n').nth(1)
+    await expect(populated).toContainText('2020–2022')
+    await expect(populated).toContainText('3 vintage pairs')
+    // An unpopulated row shows a dash rather than inventing a span.
+    await expect(region.locator('tr[data-from-rating="0"] td.n').nth(1)).toContainText('—')
+
+    // Provenance travels with the matrix (NFR-3).
+    await expect(region).toContainText('deterioration-fixture-0001')
+
+    // The method note states the range of the run being served, not a hardcoded one.
+    await expect(region).toContainText('2020–2023')
+
     // The site-wide disclaimer footer is still here too (GR-6).
     await expect(page.getByText('not engineering advice').first()).toBeVisible()
   })
 
-  test('changing the cohort updates the URL so the view stays shareable', async ({ page }) => {
+  test('changing the cohort or component updates the URL so the view stays shareable', async ({
+    page,
+  }) => {
     await page.goto('/patterns?component=Deck')
     await expect(page.getByRole('region', { name: /All bridges/ })).toBeVisible({ timeout: 20_000 })
 
     await page.getByLabel('Component').selectOption('Culvert')
     await expect(page).toHaveURL(/component=Culvert/)
     await expect(page.getByRole('region', { name: /Culvert/ })).toBeVisible({ timeout: 20_000 })
+
+    // Picking a cohort must put all three dimensions in the URL — they are meaningless apart, and
+    // the API rejects a partial cohort.
+    await page.getByLabel('Component').selectOption('Deck')
+    await page.getByLabel('Cohort').selectOption('Girder / Stringer|Steel|Northeast')
+    await expect(page).toHaveURL(/typeGroup=Girder/)
+    await expect(page).toHaveURL(/materialGroup=Steel/)
+    await expect(page).toHaveURL(/region=Northeast/)
+    await expect(page.getByRole('region', { name: /Girder \/ Stringer · Steel · Northeast/ })).toBeVisible({
+      timeout: 20_000,
+    })
+
+    // ...and returning to the national matrix must clear all three rather than leave a partial one.
+    await page.getByLabel('Cohort').selectOption('')
+    await expect(page).not.toHaveURL(/typeGroup=/)
+    await expect(page).not.toHaveURL(/materialGroup=/)
+    await expect(page).not.toHaveURL(/region=/)
+    await expect(page.getByRole('region', { name: /All bridges/ })).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('a matrix with no row above the floor states no share at all (AC-3)', async ({ page }) => {
+    // The Culvert fixture is 10 pairs against a floor of 50, so every row is suppressed — and the
+    // matrix-level unchanged share has to be suppressed with them. Computed over the whole matrix it
+    // would read "100.0%", directly under ten rows saying "insufficient data".
+    await page.goto('/patterns?component=Culvert')
+    const region = page.getByRole('region', { name: /Culvert/ })
+    await expect(region).toBeVisible({ timeout: 20_000 })
+
+    await expect(region).toContainText('insufficient data')
+    await expect(region).toContainText('no share is stated')
+    await expect(region).not.toContainText('100.0%')
   })
 
   test('no per-structure deterioration surface exists anywhere in the view', async ({ page }) => {

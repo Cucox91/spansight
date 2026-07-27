@@ -71,6 +71,13 @@ public class DeteriorationQueryValidationTests
     [InlineData("", "component")]
     [InlineData("Girders", "component")]
     [InlineData("LowestRating", "component")]
+    // Enum.TryParse accepts any numeric string and hands back an undefined enum value, so these
+    // reached the database as a component that does not exist and came back 200 with a fabricated
+    // family label over an empty grid.
+    [InlineData("99", "component")]
+    [InlineData("0", "component")]
+    [InlineData("-3", "component")]
+    [InlineData("2", "component")]
     public void A_missing_or_unknown_component_names_its_field(string? component, string field)
     {
         Assert.False(DeteriorationEndpoints.TryBuildQuery(component, null, null, null, out _, out var errors));
@@ -119,9 +126,48 @@ public class DeteriorationQueryValidationTests
     [Fact]
     public void The_method_note_states_the_gr6_framing()
     {
-        Assert.Contains("not engineering advice", DeteriorationEndpoints.MethodNote);
-        Assert.Contains("not a prediction", DeteriorationEndpoints.MethodNote);
-        Assert.Contains("cohort level", DeteriorationEndpoints.MethodNote);
+        var note = DeteriorationEndpoints.MethodNote(null);
+
+        Assert.Contains("not engineering advice", note);
+        Assert.Contains("not a prediction", note);
+        Assert.Contains("cohort level", note);
+    }
+
+    /// <summary>
+    /// The vintage range comes from the run, so a job published over part of the catalog cannot ship a
+    /// note claiming the whole of it. Hardcoding "1992–2025" put that exact contradiction on the CI
+    /// fixture, whose run is 2020–2023.
+    /// </summary>
+    [Fact]
+    public void The_method_note_takes_its_vintage_range_from_the_run()
+    {
+        var run = new DeteriorationRun
+        {
+            JobRunId = "j",
+            CatalogSha256 = "s",
+            MethodologyVersion = "v1.1",
+            FirstYear = 2020,
+            LastYear = 2023,
+        };
+
+        Assert.Contains("2020–2023", DeteriorationEndpoints.MethodNote(run));
+        Assert.DoesNotContain("1992", DeteriorationEndpoints.MethodNote(run));
+
+        // With nothing published the note describes itself rather than naming a range it cannot know.
+        Assert.DoesNotContain("–", DeteriorationEndpoints.MethodNote(null));
+    }
+
+    /// <summary>
+    /// The share in the cadence caption is a rate, so a matrix with no above-floor row states no
+    /// share at all rather than a number computed from evidence the response just suppressed.
+    /// </summary>
+    [Fact]
+    public void The_suppressed_cadence_caption_carries_the_caveat_but_no_number()
+    {
+        Assert.DoesNotContain('%', DeteriorationEndpoints.CadenceCaptionWithoutShare);
+        Assert.Contains("no share is stated", DeteriorationEndpoints.CadenceCaptionWithoutShare);
+        Assert.Contains("24-month", DeteriorationEndpoints.CadenceCaptionWithoutShare);
+        Assert.Contains("understated", DeteriorationEndpoints.CadenceCaptionWithoutShare);
     }
 
     [Theory]
@@ -134,12 +180,19 @@ public class DeteriorationQueryValidationTests
     [InlineData("likely to")]
     public void No_published_copy_promises_the_future(string forbidden)
     {
-        foreach (var copy in (ReadOnlySpan<string>)
-                 [DeteriorationEndpoints.MethodNote, DeteriorationEndpoints.CadenceCaptionTemplate])
+        foreach (var copy in PublishedCopy)
         {
             Assert.DoesNotContain(forbidden, copy, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    /// <summary>Every user-visible string the API ships with a matrix.</summary>
+    private static string[] PublishedCopy =>
+    [
+        DeteriorationEndpoints.MethodNote(null),
+        DeteriorationEndpoints.CadenceCaptionTemplate,
+        DeteriorationEndpoints.CadenceCaptionWithoutShare,
+    ];
 
     /// <summary>
     /// "Predict" is the one word that has a legitimate use here — but only in the disclaimer. Every
@@ -148,8 +201,7 @@ public class DeteriorationQueryValidationTests
     [Fact]
     public void Prediction_is_only_ever_mentioned_to_deny_it()
     {
-        foreach (var copy in (ReadOnlySpan<string>)
-                 [DeteriorationEndpoints.MethodNote, DeteriorationEndpoints.CadenceCaptionTemplate])
+        foreach (var copy in PublishedCopy)
         {
             var mentions = System.Text.RegularExpressions.Regex.Matches(copy, "predict", RegexOptions).Count;
             var denials = System.Text.RegularExpressions.Regex.Matches(copy, "not a prediction", RegexOptions).Count;
@@ -169,6 +221,7 @@ public class DeteriorationQueryValidationTests
             DeteriorationEndpoints.CadenceCaptionTemplate, "91.0%");
 
         Assert.Contains("91.0%", caption);
+        Assert.Contains("above the sample-size floor", caption);
         Assert.Contains("24-month", caption);
         Assert.Contains("understate", caption);
     }

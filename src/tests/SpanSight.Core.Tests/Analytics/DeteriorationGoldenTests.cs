@@ -288,20 +288,90 @@ public class DeteriorationGoldenTests
     /// only one consecutive year-pair, which is the shape most likely to expose an off-by-one in the
     /// pairing join.
     /// </summary>
+    public static TheoryData<string> Invariants =>
+    [
+        "det_check_unmapped",
+        "det_check_pair_shape",
+        "det_check_row_totals",
+        "det_check_national_is_the_sum",
+        "det_check_sentinel_is_whole",
+        "det_check_reserved_value",
+        "det_check_span",
+    ];
+
     [DuckDbTheory]
-    [InlineData("det_check_unmapped")]
-    [InlineData("det_check_pair_shape")]
-    [InlineData("det_check_row_totals")]
-    [InlineData("det_check_national_is_the_sum")]
-    [InlineData("det_check_sentinel_is_whole")]
-    [InlineData("det_check_reserved_value")]
-    [InlineData("det_check_span")]
+    [MemberData(nameof(Invariants))]
     public void The_era_fixtures_satisfy_every_published_invariant(string check)
     {
         var init = DuckDb.CreateDeteriorationFixtureInitScript();
         try
         {
             Assert.Equal("0", DuckDb.Run($"SELECT count(*) FROM {check};", init));
+        }
+        finally
+        {
+            File.Delete(init);
+        }
+    }
+
+    /// <summary>
+    /// The same invariants over the synthetic source, which is the only one that can violate several
+    /// of them. The era fixtures hold a single year-pair, so every row there spans exactly one year
+    /// and <c>det_check_span</c> has nothing to disagree with; the synthetic file has two, and also
+    /// carries the duplicate key, the record-type-2 row and the multi-region cohorts the era fixtures
+    /// cannot reach. An invariant only tested against a source that cannot break it is not tested.
+    /// </summary>
+    [DuckDbOnlyTheory]
+    [MemberData(nameof(Invariants))]
+    public void The_synthetic_fixture_satisfies_every_published_invariant(string check)
+    {
+        var init = DuckDb.CreateSyntheticInitScript();
+        try
+        {
+            Assert.Equal("0", DuckDb.Run($"SELECT count(*) FROM {check};", init));
+        }
+        finally
+        {
+            File.Delete(init);
+        }
+    }
+
+    /// <summary>
+    /// <c>det_check_span</c> must be able to fail. It recomputes each row's span from
+    /// <c>det_pair</c> and compares, rather than checking the row against itself — an earlier version
+    /// tested only internal consistency (<c>count(DISTINCT) &gt;= 1</c> and friends), every clause of
+    /// which is a tautology when the columns come from one GROUP BY, so it returned zero rows no
+    /// matter what the job computed. This pins the property by asserting the check fires on a
+    /// deliberately wrong span.
+    /// </summary>
+    [DuckDbOnlyFact]
+    public void The_span_check_catches_a_span_that_does_not_describe_its_pairs()
+    {
+        var init = DuckDb.CreateSyntheticInitScript();
+        try
+        {
+            // A row whose span claims years its pairs do not have — the corruption a self-consistency
+            // check cannot see, because min/max/count over the wrong column are still self-consistent.
+            var violations = DuckDb.Run(
+                """
+                CREATE OR REPLACE VIEW det_matrix_row AS
+                SELECT component, type_group, material_group, region,
+                       CAST(from_rating AS SMALLINT)             AS from_rating,
+                       CAST(count(*) AS INTEGER)                 AS row_total,
+                       CAST(min(to_year) AS SMALLINT)            AS first_from_year,
+                       CAST(max(to_year) AS SMALLINT)            AS last_from_year,
+                       CAST(count(DISTINCT to_year) AS SMALLINT) AS year_pairs_observed
+                FROM det_pair GROUP BY 1, 2, 3, 4, 5
+                UNION ALL
+                SELECT component, 'All', 'All', 'All',
+                       CAST(from_rating AS SMALLINT), CAST(count(*) AS INTEGER),
+                       CAST(min(to_year) AS SMALLINT), CAST(max(to_year) AS SMALLINT),
+                       CAST(count(DISTINCT to_year) AS SMALLINT)
+                FROM det_pair GROUP BY 1, 5;
+                SELECT count(*) FROM det_check_span;
+                """, init);
+
+            Assert.NotEqual("0", violations);
         }
         finally
         {

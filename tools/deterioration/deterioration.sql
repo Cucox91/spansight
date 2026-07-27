@@ -135,8 +135,21 @@ WITH on_structure AS (
     -- Normalized cohort codes. nullif(trim(...),'') collapses NULL and blank into one "not published"
     -- signal *before* any padding: lpad('' ,2,'0') would be '00', which is a real published 43B code
     -- (Other), so padding first would silently convert an absence into a claim.
+    --
+    -- The pad is a CASE and not a bare lpad() because DuckDB's lpad TRUNCATES when the value is
+    -- already longer than the target width — lpad('021',2,'0') is '02', a real published code meaning
+    -- Girder / Stringer. A three-character 43B would therefore be silently filed under whichever group
+    -- its first two characters name, and det_check_unmapped would report zero violations, which is the
+    -- opposite of what §4 below promises. .NET's PadLeft never truncates, so this also keeps the SQL
+    -- and NbiCohorts.TypeGroup identical on inputs the golden test can reach. Every 43B value in the
+    -- 34 published vintages is exactly two characters today; this is here so a future one that is not
+    -- fails the build instead of joining the wrong cohort.
     nullif(trim(STRUCTURE_KIND_043A), '')                   AS code_043a,
-    lpad(nullif(trim(STRUCTURE_TYPE_043B), ''), 2, '0')     AS code_043b,
+    CASE
+      WHEN length(nullif(trim(STRUCTURE_TYPE_043B), '')) < 2
+        THEN lpad(nullif(trim(STRUCTURE_TYPE_043B), ''), 2, '0')
+      ELSE nullif(trim(STRUCTURE_TYPE_043B), '')
+    END                                                     AS code_043b,
     CASE WHEN regexp_matches(trim(DECK_COND_058),           '^[0-9]$') THEN CAST(trim(DECK_COND_058)           AS TINYINT) END AS deck,
     CASE WHEN regexp_matches(trim(SUPERSTRUCTURE_COND_059), '^[0-9]$') THEN CAST(trim(SUPERSTRUCTURE_COND_059) AS TINYINT) END AS superstructure,
     CASE WHEN regexp_matches(trim(SUBSTRUCTURE_COND_060),   '^[0-9]$') THEN CAST(trim(SUBSTRUCTURE_COND_060)   AS TINYINT) END AS substructure,
@@ -263,10 +276,10 @@ GROUP BY 1, 5;
 --------------------------------------------------------------------------------------------------
 -- 6. The matrix cells — the numerators (output b).
 --------------------------------------------------------------------------------------------------
--- One row per NON-ZERO cell. 74% of cohort-components populate fewer than 100 of their 100 cells
--- (median 12), and "never observed in 34 years" is a real published fact worth keeping distinct from
--- an observed zero; the API zero-fills to a full 10x10 grid on read, so the reader still sees ten
--- columns. Rates are not stored: a rate is a division of two stored numbers and storing it would only
+-- One row per NON-ZERO cell. A cohort-component populates 12 of its 100 cells at the median and
+-- exactly 1 of 1,028 populates all 100, so dense storage would be almost entirely zeros — and
+-- "never observed in 34 years" is a real published fact worth keeping distinct from an observed zero.
+-- The API zero-fills to a full 10x10 grid on read, so the reader still sees ten columns. Rates are not stored: a rate is a division of two stored numbers and storing it would only
 -- create something that can disagree with them (the rule ConditionRollup already follows).
 CREATE OR REPLACE VIEW det_matrix_cell AS
 SELECT
@@ -365,16 +378,57 @@ UNION ALL SELECT 'material_group', material_group FROM det_material_group WHERE 
 UNION ALL SELECT 'region', region FROM det_climate_region WHERE region = 'All'
 UNION ALL SELECT 'not_published', 'All' FROM det_methodology WHERE not_published = 'All';
 
--- Each row's span must be consistent with the pairs it summarises: at least one year-pair, no more
--- than the span allows, and the span inside the published vintage range.
+-- Each row's span must describe the pairs it summarises.
+--
+-- This deliberately recomputes the span from det_pair and compares, rather than checking the row
+-- against itself. An earlier version tested internal consistency — year_pairs_observed >= 1, <=
+-- last-first+1, <= row_total, first <= last — and every one of those is a tautology when the columns
+-- come from min()/max()/count(DISTINCT)/count(*) over one GROUP BY: the view could never return a row
+-- whatever the source said. It would have passed with the span read from to_year instead of from_year,
+-- which is exactly the corruption the span exists to prevent.
 CREATE OR REPLACE VIEW det_check_span AS
-SELECT component, type_group, material_group, region, from_rating,
-       first_from_year, last_from_year, year_pairs_observed, row_total
-FROM det_matrix_row
-WHERE year_pairs_observed < 1
-   OR year_pairs_observed > last_from_year - first_from_year + 1
-   OR year_pairs_observed > row_total
-   OR first_from_year > last_from_year;
+WITH recomputed AS (
+  SELECT
+    component, type_group, material_group, region,
+    CAST(from_rating AS SMALLINT)               AS from_rating,
+    CAST(count(*) AS INTEGER)                   AS row_total,
+    CAST(min(from_year) AS SMALLINT)            AS first_from_year,
+    CAST(max(from_year) AS SMALLINT)            AS last_from_year,
+    CAST(count(DISTINCT from_year) AS SMALLINT) AS year_pairs_observed
+  FROM det_pair
+  GROUP BY 1, 2, 3, 4, 5
+  UNION ALL
+  SELECT
+    component, 'All', 'All', 'All',
+    CAST(from_rating AS SMALLINT),
+    CAST(count(*) AS INTEGER),
+    CAST(min(from_year) AS SMALLINT),
+    CAST(max(from_year) AS SMALLINT),
+    CAST(count(DISTINCT from_year) AS SMALLINT)
+  FROM det_pair
+  GROUP BY 1, 5
+)
+SELECT
+  coalesce(r.component, x.component)           AS component,
+  coalesce(r.type_group, x.type_group)         AS type_group,
+  coalesce(r.material_group, x.material_group) AS material_group,
+  coalesce(r.region, x.region)                 AS region,
+  coalesce(r.from_rating, x.from_rating)       AS from_rating,
+  r.first_from_year AS stored_first, x.first_from_year AS actual_first,
+  r.last_from_year  AS stored_last,  x.last_from_year  AS actual_last,
+  r.year_pairs_observed AS stored_year_pairs, x.year_pairs_observed AS actual_year_pairs,
+  r.row_total AS stored_total, x.row_total AS actual_total
+FROM det_matrix_row r
+FULL OUTER JOIN recomputed x
+  USING (component, type_group, material_group, region, from_rating)
+WHERE r.first_from_year     IS DISTINCT FROM x.first_from_year
+   OR r.last_from_year      IS DISTINCT FROM x.last_from_year
+   OR r.year_pairs_observed IS DISTINCT FROM x.year_pairs_observed
+   OR r.row_total           IS DISTINCT FROM x.row_total
+   -- ...and the property the old comment claimed but never implemented: a span cannot leave the
+   -- published vintage range, and a from-year must have a to-year after it.
+   OR x.first_from_year < (SELECT min(from_year) FROM det_pair)
+   OR x.last_from_year  > (SELECT max(from_year) FROM det_pair);
 
 --------------------------------------------------------------------------------------------------
 -- 8. Diagnostics the build publishes rather than leaves to be discovered.

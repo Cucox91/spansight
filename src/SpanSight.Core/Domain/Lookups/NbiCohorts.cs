@@ -30,7 +30,7 @@ public static class NbiCohorts
     /// Item 43A or 43B carried no code. A labelled bucket, not a silent drop and not folded into
     /// "Other": FHWA publishing nothing is not FHWA publishing code 0 (§2 "never imputed", §5
     /// "reported, never silently dropped"). 7,316 component pairs have no 43A and 9,499 no 43B, all
-    /// with from-years 1992–2014.
+    /// with from-years 1992–2012.
     /// </summary>
     public const string NotPublished = "Not published";
 

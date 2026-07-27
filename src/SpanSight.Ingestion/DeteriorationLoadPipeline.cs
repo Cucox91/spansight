@@ -74,13 +74,18 @@ public sealed class DeteriorationLoadPipeline(SpanSightDbContext db, ILogger<Det
         {
             await db.Database.MigrateAsync(cancellationToken);
 
+            // Looked up by job id alone, whatever its status. job_run_id is uniquely indexed, so
+            // filtering on Completed here would make a retry after a failed load throw a raw
+            // duplicate-key error from SaveChanges instead of re-publishing — and a failed load is
+            // exactly when an operator re-runs the command. The stillServed check below is what
+            // decides no-op versus re-publish, so the status predicate only ever added that crash.
             var existing = await db.DeteriorationRuns.FirstOrDefaultAsync(
-                r => r.JobRunId == manifest.RunId && r.Status == DeteriorationRunStatus.Completed, cancellationToken);
+                r => r.JobRunId == manifest.RunId, cancellationToken);
 
             // "Already completed" is not the same as "still being served" — publishing a different job
             // sweeps this run's rows away while leaving its Completed status behind, so the rows decide
             // (the trap TrendLoadPipeline documents and this mirrors).
-            var stillServed = existing is not null
+            var stillServed = existing is { Status: DeteriorationRunStatus.Completed }
                 && await db.DeteriorationMatrixRows.AnyAsync(r => r.DeteriorationRunId == existing.Id, cancellationToken);
 
             if (stillServed && !force)
@@ -133,6 +138,17 @@ public sealed class DeteriorationLoadPipeline(SpanSightDbContext db, ILogger<Det
         var cells = 0;
         var superseded = 0;
 
+        // One transaction around the whole publish.
+        //
+        // The manifest reconciliation below can only run after both files have been read, so without
+        // this the upserts would already be in the serving tables when it throws — leaving the API
+        // serving a rejected build's numerators against another run's denominators, with the
+        // convergence delete never reached. Rates would not sum to 100% and the provenance would name
+        // a Failed run. The rollback puts the tables back exactly as they were; only the run row's
+        // Failed status survives, written on its own connection afterwards so the operator can see
+        // what happened.
+        await using var transaction = dryRun ? null : await db.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             matrixRows = await LoadRowsAsync(rowPath, run, dryRun, cancellationToken);
@@ -162,12 +178,22 @@ public sealed class DeteriorationLoadPipeline(SpanSightDbContext db, ILogger<Det
                 run!.CompletedUtc = DateTimeOffset.UtcNow;
                 run.Status = DeteriorationRunStatus.Completed;
                 await db.SaveChangesAsync(cancellationToken);
+                await transaction!.CommitAsync(cancellationToken);
             }
         }
         catch (Exception ex) when (run is not null)
         {
-            run.Status = DeteriorationRunStatus.Failed;
-            run.Error = ex.Message;
+            if (transaction is not null)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+
+            // The run row was written before the transaction opened, so it is still there to mark —
+            // but EF is holding the rolled-back Completed/Running edits, so they are discarded first.
+            db.ChangeTracker.Clear();
+            var failed = await db.DeteriorationRuns.FirstAsync(r => r.Id == run.Id, CancellationToken.None);
+            failed.Status = DeteriorationRunStatus.Failed;
+            failed.Error = ex.Message;
             await db.SaveChangesAsync(CancellationToken.None);
             throw;
         }

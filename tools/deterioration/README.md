@@ -93,7 +93,7 @@ double it. Either breaks the invariant that the cohort matrices sum to the natio
 Two labelled buckets exist so nothing is silently dropped:
 
 - **"Not published"** — item 43A or 43B carried no code at all (7,316 and 9,499 component pairs, all
-  with from-years 1992–2014). Never folded into "Other": FHWA publishing nothing is not FHWA
+  with from-years 1992–2012). Never folded into "Other": FHWA publishing nothing is not FHWA
   publishing code 0.
 - **"Outside contiguous U.S."** — implemented as the *else branch* of the nine-region climate map, not
   a fixed list, so a territory FHWA has not published yet cannot vanish. 414,679 pairs today
@@ -107,11 +107,15 @@ what makes the feature exist at all. Pooling hides *when* the evidence was publi
 carries its own span — first and last from-year, and how many distinct year-pairs contributed.
 
 That is not decoration. 19,927 deck pairs sit inside the **Culvert** type group, 99.1% of them with a
-from-year of 2008 or earlier, and from-ratings 3–9 all clear the floor. Without the span those cells
-would render a floor-clearing rate labelled 1992–2025 from what is effectively 1992–2008 coding
-practice. They are not suppressed — that would violate "reported, never silently dropped" — so the
-build prints every above-floor row whose evidence spans five year-pairs or fewer, and the UI shows the
-span beside the n.
+from-year of 2008 or earlier, and from-ratings 5–9 clear the floor at published-row level. Without the
+span those cells would render a floor-clearing rate labelled 1992–2025 from what is effectively
+1992–2008 coding practice. They are not suppressed — that would violate "reported, never silently
+dropped" — and the UI shows the span beside the n.
+
+Be clear about the limits of that mitigation, because the methodology now is: the build's
+≤5-year-pair diagnostic does **not** catch these rows — they draw on 7–32 year-pairs — and the largest
+of them displays "1992–2024, 32 vintage pairs" while 90% of its evidence predates 2009. A diagnostic
+keyed on the share of a row's pairs before a cut year is the honest fix and is recorded as v2 work.
 
 ## The sample-size floor is a property of the row
 
