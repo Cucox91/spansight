@@ -1,0 +1,4 @@
+state_code,structure_number,record_type,nbi_county_fips,reason,touching_counties,nearest_county_fips,nearest_distance_m,lon,lat
+12,OF-0001,1,12086,outside_all_county_polygons,0,12086,9543,-80.0,25.5
+15,PC-0001,1,15003,outside_all_county_polygons,0,,,-155.0,20.0
+48,BD-0001,1,48301,on_county_boundary,1,48301,0,-103.98403,31.993588
