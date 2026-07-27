@@ -3,6 +3,9 @@ import type {
   BridgeFeatureCollection,
   BridgeHistory,
   BridgeSummary,
+  ConditionComponent,
+  DeteriorationCatalog,
+  DeteriorationMatrix,
   Lookups,
   NlQueryResponse,
   PagedResponse,
@@ -87,6 +90,29 @@ export function fetchTrends(
     toYear: String(toYear),
   })
   return getJson(`/api/trends?${params}`, signal)
+}
+
+/** FR-1.3 — the cohorts that have published matrices, plus each dimension's vocabulary. */
+export function fetchDeteriorationCatalog(signal?: AbortSignal): Promise<DeteriorationCatalog> {
+  return getJson('/api/deterioration/cohorts', signal)
+}
+
+/**
+ * FR-1.3 — one cohort's transition matrix for one component. Omitting the cohort asks for the
+ * national all-cohorts context matrix, which is the exact sum of every cohort.
+ */
+export function fetchDeteriorationMatrix(
+  component: ConditionComponent,
+  cohort: { typeGroup: string; materialGroup: string; region: string } | null,
+  signal?: AbortSignal,
+): Promise<DeteriorationMatrix> {
+  const params = new URLSearchParams({ component })
+  if (cohort) {
+    params.set('typeGroup', cohort.typeGroup)
+    params.set('materialGroup', cohort.materialGroup)
+    params.set('region', cohort.region)
+  }
+  return getJson(`/api/deterioration/matrix?${params}`, signal)
 }
 
 export function fetchQaSummary(signal?: AbortSignal): Promise<QaSummary> {

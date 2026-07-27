@@ -117,6 +117,101 @@ export interface TrendSeries {
   provenance: TrendProvenance | null
 }
 
+/* ---------------------------------------------------------------- FR-1.3 deterioration patterns */
+
+export type ConditionComponent = 'Deck' | 'Superstructure' | 'Substructure' | 'Culvert'
+
+/** Which offline job produced the matrices, and under which methodology version. */
+export interface DeteriorationProvenance {
+  jobRunId: string
+  catalogSha256: string
+  publishedUtc: string | null
+  firstYear: number
+  lastYear: number
+  yearPairs: number
+  componentPairs: number
+}
+
+/** A published NBI code with its decoded label — groups ship their members so labels stay honest. */
+export interface CohortCode {
+  code: string
+  label: string
+}
+
+export interface CohortGroup {
+  name: string
+  codes: CohortCode[]
+}
+
+export interface DeteriorationDimensions {
+  components: ConditionComponent[]
+  typeGroups: CohortGroup[]
+  materialGroups: CohortGroup[]
+  regions: string[]
+}
+
+export interface CohortComponentSummary {
+  component: ConditionComponent
+  pairs: number
+  rows: number
+  rowsAboveFloor: number
+}
+
+export interface DeteriorationCohort {
+  typeGroup: string
+  materialGroup: string
+  region: string
+  /** The all-cohorts context matrix: the exact sum of every cohort. */
+  isNational: boolean
+  components: CohortComponentSummary[]
+}
+
+export interface DeteriorationCatalog {
+  dimensions: DeteriorationDimensions
+  cohorts: DeteriorationCohort[]
+  sampleFloor: number
+  method: string
+  methodologyVersion: string
+  methodologyUrl: string
+  provenance: DeteriorationProvenance | null
+}
+
+/** `rate` is null whenever the containing row is below the sample-size floor — never render a number then. */
+export interface DeteriorationCell {
+  toRating: number
+  pairs: number
+  rate: number | null
+}
+
+export interface DeteriorationRow {
+  fromRating: number
+  rowTotal: number
+  /** False → the view must say "insufficient data" rather than show a rate (FR-1.3 AC-3). */
+  sufficient: boolean
+  firstFromYear: number | null
+  lastFromYear: number | null
+  yearPairsObserved: number
+}
+
+export interface DeteriorationMatrixRow extends DeteriorationRow {
+  cells: DeteriorationCell[]
+}
+
+export interface DeteriorationMatrix {
+  component: ConditionComponent
+  cohort: DeteriorationCohort
+  rows: DeteriorationMatrixRow[]
+  pairs: number
+  sampleFloor: number
+  rowsBelowFloor: number
+  unchangedShare: number | null
+  method: string
+  cadenceCaption: string
+  methodologyVersion: string
+  methodologyUrl: string
+  provenance: DeteriorationProvenance | null
+}
+
 export interface StatsSummary {
   total: number
   byCondition: Record<string, number>

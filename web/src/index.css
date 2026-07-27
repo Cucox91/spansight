@@ -783,3 +783,166 @@ select:focus-visible {
 .chip.unknown {
   background: var(--muted);
 }
+
+/* ============ PATTERNS PAGE (FR-1.3) ============ */
+.patterns-page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  max-width: 1200px;
+}
+
+.patterns-page h2 {
+  font-size: 16px;
+}
+
+.matrix-result h3 {
+  font-size: 15px;
+  margin: 14px 0 0;
+}
+
+/* The grid is 13 columns wide by nature; it scrolls inside its own box so the page never does. */
+.matrix-scroll {
+  overflow-x: auto;
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.matrix {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.matrix caption {
+  caption-side: top;
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.matrix th,
+.matrix td {
+  border: 1px solid var(--line);
+  padding: 5px 7px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.matrix thead th {
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.matrix tbody th[scope='row'] {
+  background: var(--bg);
+  text-align: right;
+  font-weight: 700;
+}
+
+.matrix td.n {
+  text-align: right;
+  color: var(--muted);
+}
+
+.matrix td.n small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* The colour is set explicitly because `.count` is also the filter rail's muted count class, and
+   that generic rule would otherwise win here — muted grey on a tinted cell fails WCAG AA (NFR-7). */
+.matrix td.cell .count {
+  color: var(--ink);
+  display: block;
+  font-weight: 600;
+}
+
+/* Full-strength ink rather than the muted grey: at 10px over a tinted cell the muted colour drops
+   below WCAG AA (axe measured 4.37:1 against the lightest shade). Size and weight carry the
+   hierarchy instead of colour, and the shade alpha is capped so this stays legible at every
+   intensity (NFR-7). */
+.matrix td.cell .rate {
+  display: block;
+  font-size: 10px;
+  color: var(--ink);
+}
+
+/* The diagonal carries 91-93% of every cohort. It gets its own flat treatment instead of sharing the
+   off-diagonal colour scale, which would otherwise render one bright stripe and nine dark rows. */
+.matrix td.cell.diagonal {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg),
+    var(--bg) 4px,
+    #e8edf1 4px,
+    #e8edf1 8px
+  );
+}
+
+/* A never-observed cell is de-emphasised by weight, not by a lighter grey: at 12px the muted colour
+   drops below AA over a tinted neighbour, and "0" is a real published fact worth reading. */
+.matrix td.cell.empty .count {
+  font-weight: 400;
+}
+
+.matrix tr.insufficient td.cell,
+.matrix tr.insufficient th[scope='row'] {
+  opacity: 0.75;
+}
+
+.matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.matrix-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.swatch.diagonal {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg),
+    var(--bg) 3px,
+    #e8edf1 3px,
+    #e8edf1 6px
+  );
+}
+
+.swatch.declined {
+  background: rgba(198, 40, 40, 0.35);
+}
+
+.swatch.improved {
+  background: rgba(46, 125, 50, 0.35);
+}
+
+.swatch.insufficient {
+  background: var(--panel);
+  opacity: 0.75;
+}

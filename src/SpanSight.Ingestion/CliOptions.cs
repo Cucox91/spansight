@@ -42,6 +42,13 @@ public sealed record CliOptions
                                                      (default: data/trends)
                              --dry-run               read and validate only; no database writes
                              --force                 re-publish even if this job run id is loaded
+          load-deterioration
+                           Publish the offline cohort transition matrices (FR-1.3).
+                             --file <dir>            output dir of
+                                                     tools/deterioration/build-deterioration.sh
+                                                     (default: data/deterioration)
+                             --dry-run               read and validate only; no database writes
+                             --force                 re-publish even if this job run id is loaded
           export-geojson   Stream core bridges as GeoJSONSeq for the tile build (tools/build-tiles.sh).
                              --out <path>            output .geojsonl path (required)
           migrate          Apply EF Core migrations to the target database.
@@ -58,7 +65,8 @@ public sealed record CliOptions
         }
 
         var options = new CliOptions { Command = args[0].ToLowerInvariant() };
-        if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage" or "load-trends"))
+        if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage"
+            or "load-trends" or "load-deterioration"))
         {
             return (null, $"Unknown command '{args[0]}'.");
         }
@@ -116,8 +124,9 @@ public sealed record CliOptions
             "convert-vintage" when options.File is null => (null, "convert-vintage requires --file."),
             "convert-vintage" when options.SnapshotYear is null => (null, "convert-vintage requires --snapshot-year."),
             "export-geojson" when options.Output is null => (null, "export-geojson requires --out."),
-            // --file defaults to where build-trends.sh writes, so the common case is bare.
+            // --file defaults to where each build script writes, so the common case is bare.
             "load-trends" => (options with { File = options.File ?? Path.Combine("data", "trends") }, null),
+            "load-deterioration" => (options with { File = options.File ?? Path.Combine("data", "deterioration") }, null),
             _ => (options, null),
         };
     }

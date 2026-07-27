@@ -166,6 +166,115 @@ public sealed record TrendSeriesDto(
     string Method,
     TrendProvenanceDto? Provenance);
 
+/// <summary>Which offline deterioration job produced the matrices, and under which methodology (FR-1.3, NFR-3).</summary>
+public sealed record DeteriorationProvenanceDto(
+    string JobRunId,
+    string CatalogSha256,
+    DateTimeOffset? PublishedUtc,
+    int FirstYear,
+    int LastYear,
+    int YearPairs,
+    long ComponentPairs);
+
+/// <summary>
+/// A published NBI code and its decoded label. Cohort groups collapse several codes, so every group
+/// ships its members: "Other" is honest about containing aluminium and cast iron rather than leaving
+/// the reader to assume it means "miscellaneous" (methodology §5).
+/// </summary>
+public sealed record CohortCodeDto(string Code, string Label);
+
+/// <summary>One cohort dimension value together with the published codes it collapses.</summary>
+public sealed record CohortGroupDto(string Name, IReadOnlyList<CohortCodeDto> Codes);
+
+/// <summary>The vocabulary of every cohort dimension, so a view can label a matrix without hardcoding groups.</summary>
+public sealed record DeteriorationDimensionsDto(
+    IReadOnlyList<string> Components,
+    IReadOnlyList<CohortGroupDto> TypeGroups,
+    IReadOnlyList<CohortGroupDto> MaterialGroups,
+    IReadOnlyList<string> Regions);
+
+/// <summary>How many pairs one cohort holds in one component family, and how many of its rows clear the floor.</summary>
+public sealed record CohortComponentDto(string Component, int Pairs, int Rows, int RowsAboveFloor);
+
+/// <summary>
+/// One cohort in the published matrices (FR-1.3 AC-1). <see cref="IsNational"/> marks the
+/// all-cohorts context matrix, which is the exact sum of every cohort including the
+/// "Outside contiguous U.S." and "Not published" buckets.
+/// </summary>
+public sealed record DeteriorationCohortDto(
+    string TypeGroup,
+    string MaterialGroup,
+    string Region,
+    bool IsNational,
+    IReadOnlyList<CohortComponentDto> Components);
+
+/// <summary>The cohort inventory a Patterns view picks from, plus the dimension vocabulary.</summary>
+public sealed record DeteriorationCatalogDto(
+    DeteriorationDimensionsDto Dimensions,
+    IReadOnlyList<DeteriorationCohortDto> Cohorts,
+    int SampleFloor,
+    string Method,
+    string MethodologyVersion,
+    string MethodologyUrl,
+    DeteriorationProvenanceDto? Provenance);
+
+/// <summary>
+/// One cell of a transition matrix (FR-1.3 AC-1).
+/// <para>
+/// <see cref="Rate"/> is null whenever the containing row is below the sample-size floor — the API
+/// never emits a rate a view could render as a percentage for evidence too thin to support one
+/// (AC-3). <see cref="Pairs"/> is always present: suppression removes the rate, never the evidence.
+/// </para>
+/// </summary>
+public sealed record DeteriorationCellDto(int ToRating, int Pairs, double? Rate);
+
+/// <summary>
+/// One row of a transition matrix: every pair that started at <see cref="FromRating"/> (FR-1.3 AC-1).
+/// <para>
+/// The row is the unit the floor applies to, because <see cref="RowTotal"/> is the denominator of all
+/// ten of its rates. <see cref="Sufficient"/> false means the view must render "insufficient data"
+/// rather than a number. All ten to-ratings are present whether observed or not, so a reader can tell
+/// an observed zero from a cell the 34 years never produced.
+/// </para>
+/// <para>
+/// The span (<see cref="FirstFromYear"/>–<see cref="LastFromYear"/> over
+/// <see cref="YearPairsObserved"/> year-pairs) travels with the row because all 33 year-pairs are
+/// pooled: without it a cell whose evidence is entirely pre-2009 coding practice would read as 34
+/// years of history (methodology §4, §6.8).
+/// </para>
+/// </summary>
+public sealed record DeteriorationRowDto(
+    int FromRating,
+    int RowTotal,
+    bool Sufficient,
+    int? FirstFromYear,
+    int? LastFromYear,
+    int YearPairsObserved,
+    IReadOnlyList<DeteriorationCellDto> Cells);
+
+/// <summary>
+/// A cohort's transition matrix for one component family (FR-1.3 AC-1/AC-4).
+/// <para>
+/// A descriptive count of how often published ratings moved between consecutive NBI vintages in this
+/// cohort — never a prediction, never a statement about any individual structure (GR-6). The method
+/// note, the methodology version and its link travel with every response so no view can render a
+/// matrix without them.
+/// </para>
+/// </summary>
+public sealed record DeteriorationMatrixDto(
+    string Component,
+    DeteriorationCohortDto Cohort,
+    IReadOnlyList<DeteriorationRowDto> Rows,
+    int Pairs,
+    int SampleFloor,
+    int RowsBelowFloor,
+    double? UnchangedShare,
+    string Method,
+    string CadenceCaption,
+    string MethodologyVersion,
+    string MethodologyUrl,
+    DeteriorationProvenanceDto? Provenance);
+
 public sealed record StatsSummaryDto(
     int Total,
     IReadOnlyDictionary<string, int> ByCondition,

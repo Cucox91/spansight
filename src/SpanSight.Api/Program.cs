@@ -150,6 +150,7 @@ app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.
 var apiGroup = app.MapGroup("/api");
 apiGroup.MapBridges();
 apiGroup.MapTrends();
+apiGroup.MapDeterioration();
 apiGroup.MapStats();
 apiGroup.MapLookups();
 apiGroup.MapQa();

@@ -1,0 +1,15 @@
+component,type_group,material_group,region,from_rating,to_rating,pairs
+Culvert,All,All,All,6,6,10
+Culvert,Culvert,Concrete,Southeast,6,6,10
+Deck,All,All,All,5,4,1
+Deck,All,All,All,5,5,50
+Deck,All,All,All,6,5,4
+Deck,All,All,All,6,6,45
+Deck,All,All,All,7,6,10
+Deck,All,All,All,7,7,40
+Deck,Girder / Stringer,Steel,Northeast,5,4,1
+Deck,Girder / Stringer,Steel,Northeast,5,5,50
+Deck,Girder / Stringer,Steel,Northeast,6,5,4
+Deck,Girder / Stringer,Steel,Northeast,6,6,45
+Deck,Girder / Stringer,Steel,Northeast,7,6,10
+Deck,Girder / Stringer,Steel,Northeast,7,7,40

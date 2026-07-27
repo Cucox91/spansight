@@ -43,6 +43,14 @@ jobs:
       # The golden comparison against the C# classifier happens in the test step below.
       - name: Build trend aggregates from fixtures (FR-1.2)
         run: tools/trends/build-trends.sh --fixtures
+      # FR-1.3: the same shape again — run the published transition job over both of its sources and
+      # let it check its own invariants (cohort matrices sum to the national matrix, no pair falls
+      # into an unmapped cohort, every row's span describes its pairs). The synthetic source is the
+      # hand-computed one, so a failure here means the arithmetic moved.
+      - name: Build transition matrices from fixtures (FR-1.3)
+        run: |
+          tools/deterioration/build-deterioration.sh --fixtures
+          tools/deterioration/build-deterioration.sh --synthetic
       - name: Test with line coverage
         run: >
           dotnet test SpanSight.slnx --no-build --configuration Release
@@ -137,6 +145,13 @@ jobs:
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load-trends --file src/tests/fixtures/trends
+      # FR-1.3: the hand-written matrix fixture sits at 49, 50 and 51 transitions per row, so the
+      # Patterns view renders both sides of the n>=50 sample-size floor and the e2e suite can assert
+      # the "insufficient data" branch against a real API rather than a mock.
+      - name: Load cohort transition matrices (FR-1.3)
+        run: >
+          dotnet run --project src/SpanSight.Ingestion --configuration Release --
+          load-deterioration --file src/tests/fixtures/deterioration-aggregates
       - name: Start API
         run: |
           dotnet run --project src/SpanSight.Api --configuration Release --launch-profile http &
