@@ -11,13 +11,15 @@ tools/census/convert.sh           # → data/census/parquet/{counties,county_pop
 tools/census/convert.sh --fixtures  # the committed six-county fixture (what CI runs)
 tools/census/verify-fixtures.sh   # assert the fixture outputs are actually usable (what CI runs)
 tools/census/make-fixtures.sh     # re-cut the committed fixtures from a real download
+tools/census/join-counties.sh     # AC-2: assign bridges to counties and measure the gap (W5)
 ```
 
 Requires `duckdb` (`brew install duckdb`) with the spatial extension, `python3` and `unzip`.
 
-**This stages data and nothing else.** Bridges gain nothing here: the spatial join, the
-join-coverage metric and any population-served figure are W5 (FR-1.5 AC-2/AC-3). No script in this
-directory reads bridge data.
+**Everything except `join-counties.sh` stages data and nothing else** — the four staging scripts
+never read bridge data, and each says so in its own header. `join-counties.sh` is the one script
+here that reads both sides; it arrived with W5 and is documented under [The
+join](#the-join-fr-15-ac-2) below.
 
 ## What is staged, exactly
 
@@ -49,13 +51,27 @@ is how the script can still assert a vintage exists without holding a secret.)
 
 ## The quirks that actually matter
 
-**Connecticut has planning regions, not counties.** Since 2022 Census publishes nine *planning
-regions* for CT (`09110`–`09190`, `CLASSFP` `H5`) in place of the eight historic counties
-(`09001`–`09015`). Boundaries and population agree with each other here because they are the same
-vintage — but **NBI vintages from before the change carry the retired county codes**, so a naive
-join on `COUNTY_CODE_003` will drop every Connecticut bridge in the older half of the series. This
-is a W5 problem, and it is precisely what the AC-2 join-coverage metric exists to surface. Noted
-here so it is found by design rather than by a suspicious gap in a chart.
+**Connecticut has planning regions, not counties — and NBI never followed.** Since 2022 Census
+publishes nine *planning regions* for CT (`09110`–`09190`, `CLASSFP` `H5`) in place of the eight
+historic counties (`09001`–`09015`). Boundaries and population agree with each other here because
+they are the same vintage.
+
+The W5 join measured what NBI does about it: **nothing**. Item 3 publishes the eight legacy county
+codes in *every* vintage through 2025 — not just the older half of the series — so all 5,644
+Connecticut structures in the 2025 snapshot carry a code the current boundary file does not contain,
+and all nine planning regions carry zero NBI-coded bridges. That is 8 of the 8 codes absent and
+every one of the state's structures affected, measured 2026-07-27 and published by
+`cj_diagnostic_retired_codes`.
+
+It is therefore not a gap that closes as the series moves forward, and it is not evidence that a
+coordinate is wrong: the coordinate is fine and lands in the right planning region, while the
+published code names a county that no longer exists. `nbi_fips_in_tiger` on each disagreement row is
+the flag that separates the two, and the QA page states the distinction next to the number. This is
+precisely what the AC-2 join-coverage metric exists to surface.
+
+*(An earlier version of this paragraph said NBI vintages "from before the change" carry the retired
+codes, implying NBI adopted the planning regions afterwards. It did not. `tools/trends/trends.sql`
+still carries the same wrong claim and is corrected separately.)*
 
 **13 counties have a boundary but no population.** ACS 5-year covers the 50 states, DC and Puerto
 Rico — not American Samoa (`60`), Guam (`66`), the Northern Mariana Islands (`69`) or the US Virgin
@@ -132,3 +148,90 @@ duckdb -c "LOAD spatial;
 ```
 
 Nothing but `catalog.json` and the fixtures is committed — no bulk data in git (CLAUDE.md rule 4).
+
+## The join (FR-1.5 AC-2)
+
+Staging is only half of FR-1.5. `join-counties.sh` assigns each served bridge to the county polygon
+that contains it, cross-checks that against the county code item 3 published, and publishes the gap.
+The method is `county-join.sql` — read that file, not the script.
+
+```bash
+tools/census/join-counties.sh              # the serving database + the real TIGER/ACS set
+tools/census/join-counties.sh --fixtures   # committed hand-placed points + the 6-county fixture (CI)
+dotnet run --project src/SpanSight.Ingestion -- load-county-join --file data/census/join
+```
+
+Publishing procedure and rollback: [RUNBOOK §10.5](../../docs/RUNBOOK.md).
+
+> A disagreement is a **measurement, not a correction**. Item 3 remains the county SpanSight reports
+> everywhere — the filters, the FR-1.2 trend rollups, the FR-1.4 county report card. This job says
+> how often the coordinate says otherwise, and nothing more (GR-6).
+
+### What it produces
+
+Run of 2026-07-27 against the 2025 snapshot (741,131 served rows, 3,235 counties):
+
+| Relation | Rows | What it is |
+|---|---|---|
+| `county.csv` | 3,235 | Every TIGER county with its ACS population — including the 27 carrying no NBI-coded bridge, so a report card for an empty county can name it |
+| `miss.csv` | 55 | Every structure inside no polygon, with a reason, the nearest county and the distance to it |
+| `disagreement.csv` | 4,022 | Each (published code → containing polygon) pair that disagrees, with how many structures take it |
+
+**Coverage: 741,076 of 741,131 matched — 99.9926%.** Restricted to record type 1 (the structure
+itself, which is what "bridge" means in FR-1.2 and FR-1.3): 623,331 of 623,350, or **99.9970%**.
+
+Both denominators are published because they are genuinely different populations: the serving table
+also holds the route records published *under* a structure, and quoting only one of the two answers
+a different question than AC-2 asks.
+
+### Why the bridge side comes from the database
+
+Two reasons, both about the number meaning what it says. AC-2 asks for the share of the bridges a
+reader is *served*, and those are the rows in `core.bridge` — measuring a different population
+publishes a percentage for an inventory nobody sees. And the WGS84 point there is produced by
+`NbiDmsCoordinateConverter`, which decodes items 016/017 from DMS and negates the west-positive
+longitude NBI publishes; redoing that in SQL would be a second implementation of the conversion this
+repo has tested hardest, whose failure mode is silent — a missed negation reports ~0% coverage
+rather than an error.
+
+DuckDB reads it through the `postgres` scanner, with `ST_X`/`ST_Y` evaluated server-side so PostGIS
+geometry never has to cross the wire in a format the scanner would need to understand. Local
+PostGIS was the alternative and was rejected: the join would then run inside the serving database
+(ADR-005 keeps heavy analytics in DuckDB), and the 99 MB of county polygons would have to be loaded
+into a B1ms instance to support a query that runs in three seconds offline.
+
+### The two choices that move the numbers
+
+**`ST_Within`, so a boundary point is quarantined rather than assigned.** The predicate excludes the
+boundary, so a structure sitting exactly on a county line is inside neither county. Assigning it to
+whichever polygon sorts first would be SpanSight inventing a geography the publisher did not state,
+and the case is real — bridges frequently *are* the county line, because the boundary follows the
+river they cross. Measured: 2 structures nationally, both quarantined as `on_county_boundary`. The
+predicate travels in the manifest, on the run row and in the QA payload, so the rule a coverage
+figure was measured under is never separated from the figure.
+
+**Misses are quarantined with evidence, not just a reason.** TIGER boundaries stop at the
+international border and at the shoreline, and NBI structures legitimately sit on both, so each miss
+records the nearest county and the metres to it. That is what separates a metre of shoreline slop
+from a coordinate in the wrong ocean — both are otherwise just "unmatched". The 2026-07-27 spread:
+13 under 100 m, 3 between 100 m and 1 km, 10 between 1 and 10 km, 27 over 10 km, and 2 on a boundary.
+
+### How the SQL is kept honest
+
+Eight invariant views, all of which must return zero rows before anything is written. The two worth
+naming:
+
+`cj_check_reconciles` compares the input against assigned-plus-quarantined with a **full outer
+join**, not arithmetic over the coverage row — a structure that vanished from both sides is
+invisible to a sum of the two sides, and that is the failure it exists to catch.
+
+`cj_check_sign_convention` guards the west-positive trap. A decoder that stopped negating mirrors
+every point into the eastern hemisphere; row counts survive that unchanged, so the guard is the
+share of matched structures landing in the state item 1 published (99.9% measured, 90% floor) **and,
+separately, whether anything matched at all** — because a mirrored hemisphere matches no polygon,
+which would otherwise satisfy every check in the file.
+
+`CountyJoinGoldenTests` executes this same SQL over 16 hand-placed points covering all five outcomes
+and both miss reasons, asserts each invariant returns nothing, and then mutates a relation per
+invariant to prove each one *can* fail. The fixture and its expected numbers are documented in
+[`src/tests/fixtures/census-join/README.md`](../../src/tests/fixtures/census-join/README.md).
