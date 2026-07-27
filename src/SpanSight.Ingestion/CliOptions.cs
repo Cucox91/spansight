@@ -49,6 +49,13 @@ public sealed record CliOptions
                                                      (default: data/deterioration)
                              --dry-run               read and validate only; no database writes
                              --force                 re-publish even if this job run id is loaded
+          load-county-join
+                           Publish the offline bridge->county join: county names and ACS
+                             population, join coverage, quarantined misses (FR-1.5).
+                             --file <dir>            output dir of tools/census/join-counties.sh
+                                                     (default: data/census/join)
+                             --dry-run               read and validate only; no database writes
+                             --force                 re-publish even if this job run id is loaded
           export-geojson   Stream core bridges as GeoJSONSeq for the tile build (tools/build-tiles.sh).
                              --out <path>            output .geojsonl path (required)
           migrate          Apply EF Core migrations to the target database.
@@ -66,7 +73,7 @@ public sealed record CliOptions
 
         var options = new CliOptions { Command = args[0].ToLowerInvariant() };
         if (options.Command is not ("load" or "export-geojson" or "migrate" or "convert-vintage"
-            or "load-trends" or "load-deterioration"))
+            or "load-trends" or "load-deterioration" or "load-county-join"))
         {
             return (null, $"Unknown command '{args[0]}'.");
         }
@@ -127,6 +134,7 @@ public sealed record CliOptions
             // --file defaults to where each build script writes, so the common case is bare.
             "load-trends" => (options with { File = options.File ?? Path.Combine("data", "trends") }, null),
             "load-deterioration" => (options with { File = options.File ?? Path.Combine("data", "deterioration") }, null),
+            "load-county-join" => (options with { File = options.File ?? Path.Combine("data", "census", "join") }, null),
             _ => (options, null),
         };
     }

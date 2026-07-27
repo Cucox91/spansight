@@ -54,6 +54,7 @@ builder.Services.AddSingleton<BridgeRowValidator>();
 builder.Services.AddScoped<LoadPipeline>();
 builder.Services.AddScoped<TrendLoadPipeline>();
 builder.Services.AddScoped<DeteriorationLoadPipeline>();
+builder.Services.AddScoped<CountyJoinLoadPipeline>();
 builder.Services.AddScoped<GeoJsonExporter>();
 
 using var host = builder.Build();
@@ -84,6 +85,14 @@ try
         case "load-deterioration":
             {
                 var pipeline = scope.ServiceProvider.GetRequiredService<DeteriorationLoadPipeline>();
+                var summary = await pipeline.RunAsync(options.File!, options.DryRun, options.Force);
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(summary));
+                return 0;
+            }
+
+        case "load-county-join":
+            {
+                var pipeline = scope.ServiceProvider.GetRequiredService<CountyJoinLoadPipeline>();
                 var summary = await pipeline.RunAsync(options.File!, options.DryRun, options.Force);
                 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(summary));
                 return 0;

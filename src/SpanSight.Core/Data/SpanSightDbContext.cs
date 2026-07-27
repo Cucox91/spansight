@@ -34,6 +34,14 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
 
     public DbSet<DeteriorationMatrixCell> DeteriorationMatrixCells => Set<DeteriorationMatrixCell>();
 
+    public DbSet<CountyJoinRun> CountyJoinRuns => Set<CountyJoinRun>();
+
+    public DbSet<CensusCounty> CensusCounties => Set<CensusCounty>();
+
+    public DbSet<CountyJoinMiss> CountyJoinMisses => Set<CountyJoinMiss>();
+
+    public DbSet<CountyJoinDisagreement> CountyJoinDisagreements => Set<CountyJoinDisagreement>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("postgis");
@@ -184,6 +192,88 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
             entity.HasIndex(c => new { c.Component, c.TypeGroup, c.MaterialGroup, c.Region, c.FromRating, c.ToRating })
                 .IsUnique();
             entity.HasIndex(c => c.DeteriorationRunId);
+        });
+
+        // FR-1.5 — the census join. A third independent run table for the third offline job, so the
+        // county join publishes and rolls back without touching the trend series or the matrices
+        // (RUNBOOK §10.5).
+        modelBuilder.Entity<CountyJoinRun>(entity =>
+        {
+            entity.ToTable("county_join_run", "analytics");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.JobRunId).HasMaxLength(64);
+            entity.Property(r => r.CatalogSha256).HasMaxLength(64);
+            entity.Property(r => r.MethodVersion).HasMaxLength(16);
+            entity.Property(r => r.ContainmentPredicate).HasMaxLength(32);
+            entity.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(r => r.Error).HasMaxLength(2048);
+            entity.HasIndex(r => r.JobRunId).IsUnique();
+        });
+
+        modelBuilder.Entity<CensusCounty>(entity =>
+        {
+            entity.ToTable("census_county", "analytics");
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.CountyFips).HasMaxLength(5);
+            entity.Property(c => c.StateFips).HasMaxLength(2);
+            entity.Property(c => c.Name).HasMaxLength(100);
+            entity.Property(c => c.NameLsad).HasMaxLength(120);
+            entity.Property(c => c.AcsPeriod).HasMaxLength(16);
+            entity.Property(c => c.AcsTable).HasMaxLength(16);
+            entity.HasOne<CountyJoinRun>().WithMany().HasForeignKey(c => c.CountyJoinRunId);
+
+            // Every county lookup is by FIPS, and the report card wants the whole row, so the payload
+            // is covered: a name and a population never touch the heap (NFR-1).
+            entity.HasIndex(c => c.CountyFips)
+                .IsUnique()
+                .IncludeProperties(c => new
+                {
+                    c.StateFips,
+                    c.Name,
+                    c.NameLsad,
+                    c.Population,
+                    c.PopulationMoe,
+                    c.AcsVintage,
+                    c.AcsPeriod,
+                    c.TigerVintage,
+                });
+            entity.HasIndex(c => c.StateFips);
+            entity.HasIndex(c => c.CountyJoinRunId);
+        });
+
+        modelBuilder.Entity<CountyJoinMiss>(entity =>
+        {
+            entity.ToTable("county_join_miss", "analytics");
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.StateCode).HasMaxLength(2);
+            entity.Property(m => m.StructureNumber).HasMaxLength(32);
+            entity.Property(m => m.RecordType).HasMaxLength(2);
+            entity.Property(m => m.NbiCountyFips).HasMaxLength(5);
+            entity.Property(m => m.Reason).HasMaxLength(32);
+            entity.Property(m => m.NearestCountyFips).HasMaxLength(5);
+            entity.HasOne<CountyJoinRun>().WithMany().HasForeignKey(m => m.CountyJoinRunId);
+
+            entity.HasIndex(m => new { m.StateCode, m.StructureNumber, m.RecordType }).IsUnique();
+            entity.HasIndex(m => m.CountyJoinRunId);
+        });
+
+        modelBuilder.Entity<CountyJoinDisagreement>(entity =>
+        {
+            entity.ToTable("county_join_disagreement", "analytics");
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.NbiCountyFips).HasMaxLength(5);
+            entity.Property(d => d.CountyFips).HasMaxLength(5);
+            entity.Property(d => d.Kind).HasMaxLength(32);
+            entity.HasOne<CountyJoinRun>().WithMany().HasForeignKey(d => d.CountyJoinRunId);
+
+            // NULLS NOT DISTINCT, because the natural key's first column is null for exactly one kind
+            // — county_not_published, where item 3 carried no code. Postgres treats nulls as distinct
+            // by default, so without this the unique index would not constrain those rows and the
+            // loader's ON CONFLICT would insert a duplicate on every re-run instead of updating.
+            entity.HasIndex(d => new { d.NbiCountyFips, d.CountyFips })
+                .IsUnique()
+                .AreNullsDistinct(false);
+            entity.HasIndex(d => d.CountyJoinRunId);
         });
 
         // Snake-case column names so hand-written SQL (staging merge, tile export, EXPLAIN
