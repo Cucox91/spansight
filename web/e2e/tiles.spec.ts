@@ -33,7 +33,15 @@ const STUB_STYLE = {
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#e8eef3' } }],
 }
 
-type TileFeature = { id: string; cond: string; state: string; design: string; keys: string[] }
+type TileFeature = {
+  id: string
+  cond: string
+  state: string
+  design: string
+  keys: string[]
+  /** The whole tile property bag, because that is what MapLibre evaluates the paint against. */
+  properties: Record<string, unknown>
+}
 
 async function openMap(page: Page) {
   const requests: Request[] = []
@@ -89,6 +97,7 @@ async function rendered(page: Page): Promise<TileFeature[]> {
         state: String(p.state),
         design: String(p.design),
         keys: Object.keys(p),
+        properties: { ...p },
       })
     }
     return [...seen.values()]
@@ -119,6 +128,12 @@ test('the map is actually reading tiles, and never the GeoJSON fallback', async 
     requests.filter((r) => r.url().includes('/api/bridges/geojson')).map((r) => r.url()),
     'the SPA fetched GeoJSON — it is running the fallback path, not tiles',
   ).toEqual([])
+
+  // The three assertions above certify the *mode*, not the data: they would all hold for an
+  // archive that decoded to nothing. Every test below reads rendered features, so the guard has to
+  // establish that there are some.
+  const features = await rendered(page)
+  expect(features.length, 'tiles mode confirmed, but no bridge feature decoded').toBeGreaterThanOrEqual(20)
 })
 
 // ---------------------------------------------------------------- #15
@@ -179,7 +194,10 @@ test('every published condition class paints its own colour (PR #16)', async ({ 
   expect(compiled.result, 'the layer paint expression does not compile').toBe('success')
 
   for (const f of features) {
-    const colour = String(compiled.value.evaluate({ zoom }, { properties: { cond: f.cond } }))
+    // The feature's whole property bag, not a synthesized { cond } — MapLibre evaluates the
+    // expression against everything the tile carries, so rebuilding a one-key object would test a
+    // feature that does not exist and would miss any paint logic branching on a second property.
+    const colour = String(compiled.value.evaluate({ zoom }, { properties: f.properties }))
     if (f.cond in DESIGN) {
       expect(colour, `${f.id} is ${f.cond}`).toBe(DESIGN[f.cond as keyof typeof DESIGN])
       expect(colour, `${f.id} is ${f.cond} but paints as Unknown`).not.toBe(UNKNOWN)
@@ -218,10 +236,25 @@ test('the filter rail reaches the tile layer (PR #18)', async ({ page }) => {
   await settle(page)
 
   const after = await rendered(page)
-  // Relative, never absolute: tippecanoe's drop-rate thins low zooms, so the count in view is a
-  // property of the tile pyramid rather than of the fixture.
+
+  // Both halves of the bug, because PR #18 could fail in either direction: a filter that reaches
+  // nothing, and a filter that hides everything.
+  //
+  // `after.length < before.length` alone is satisfied by zero, and the per-feature loop below is
+  // vacuous over an empty array — so a tile filter that matched nothing at all would have passed
+  // the first version of this test while the map showed no bridges.
+  const poorBefore = before.filter((f) => f.cond === 'Poor')
+  expect(poorBefore.length, 'no Poor features in view to filter down to').toBeGreaterThan(0)
+
   expect(after.length, 'unchecking two classes removed nothing').toBeLessThan(before.length)
   for (const f of after) expect(f.cond, `${f.id} survived the filter`).toBe('Poor')
+
+  // Nothing that should have survived was dropped: every Poor feature visible before the filter
+  // is still visible after it.
+  expect(
+    new Set(after.map((f) => f.id)),
+    'the filter removed Poor features it should have kept',
+  ).toEqual(new Set(poorBefore.map((f) => f.id)))
 })
 
 // ---------------------------------------------------------------- the drawer, from a tile
@@ -244,17 +277,34 @@ test('clicking a tile feature deep-links to its drawer', async ({ page }) => {
 
   await page.mouse.click(point.x, point.y)
 
-  // Asserted against *any* rendered feature rather than against `target`: several bridges can sit
-  // within a few pixels at this zoom, so which one wins the click is not the app's contract. What
-  // is the app's contract — and what nothing else on the tile path asserts — is the round trip of
-  // the `id` property, written by GeoJsonExporter as "{abbrev}-{structureNumber}" and split back
-  // apart by the click handler.
   await expect(page).toHaveURL(/\/bridge\/[A-Z]{2}\/.+$/, { timeout: 20_000 })
 
+  // Not "any rendered feature" — that would pass for a handler that ignored which feature was hit,
+  // and at this zoom the viewport holds most of the fixture. It must be one of the features
+  // actually under the cursor, which is what MapLibre's own hit test at that point returns. Which
+  // of several overlapping points wins is not the app's contract; opening on a structure that was
+  // not there at all is.
   const [, state, structureNumber] = /\/bridge\/([A-Z]{2})\/([^/?#]+)$/.exec(page.url())!
+  const underCursor = await page.evaluate((pt: { x: number; y: number }) => {
+    const map = (window as never as { __spansightMap: maplibregl.Map }).__spansightMap
+    const box = map.getCanvas().getBoundingClientRect()
+    const p = { x: pt.x - box.x, y: pt.y - box.y }
+    // A small box, not a point: a circle marker is clickable across its radius.
+    return map
+      .queryRenderedFeatures(
+        [
+          [p.x - 8, p.y - 8],
+          [p.x + 8, p.y + 8],
+        ],
+        { layers: ['bridge-points'] },
+      )
+      .map((f) => String((f.properties as Record<string, string>).id))
+  }, point)
+
+  expect(underCursor.length, 'nothing was under the cursor to click').toBeGreaterThan(0)
   expect(
-    features.map((f) => f.id),
-    'the drawer opened on a structure the tile layer never rendered',
+    underCursor,
+    'the drawer opened on a structure that was not under the click',
   ).toContain(`${state}-${decodeURIComponent(structureNumber)}`)
 
   await expect(page.getByRole('region', { name: /Bridge detail/i })).toBeVisible({ timeout: 20_000 })

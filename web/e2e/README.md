@@ -62,17 +62,20 @@ app in fallback mode and the mode guard is what catches it.
 ## Three things that are load-bearing, and look like over-engineering
 
 **The mode guard runs first and everything depends on it.** `tiles.spec.ts` asserts that a
-`.pmtiles` request happened, that it was ranged and got a 206, and that **no** request went to
-`/api/bridges/geojson`. Without it the entire file passes vacuously if `VITE_TILES_URL` fails to
-reach the dev server: the SPA quietly serves the fallback and every tile assertion below is
-satisfied by the wrong code path.
+`.pmtiles` request happened, that it was ranged and got a 206, that **no** request went to
+`/api/bridges/geojson`, and — separately — that at least twenty bridge features actually decoded.
+The first three certify the *mode* and would all hold for an archive that rendered nothing, which
+is why the fourth is there. Without the guard the entire file passes vacuously if `VITE_TILES_URL`
+fails to reach the dev server: the SPA quietly serves the fallback and every tile assertion below
+is satisfied by the wrong code path.
 
 **`tiles-server.mjs` is not a convenience.** It answers HTTP Range with 206, and it serves from
 `127.0.0.1:8081` — a different origin from the SPA. `python3 -m http.server` ignores Range and
-returns 200, and pmtiles v3 falls back to fetching the whole file under 26 MB, so the fixture
-would render perfectly while the range path production depends on stayed untested. The separate
-origin is what forces the CORS preflight (`Range` is not a safelisted request header), which is
-the classic way this breaks in production. Its header set mirrors
+returns 200; pmtiles 3.2.1 aborts and throws on a 200 whose `Content-Length` exceeds the requested
+length (*"Check that your storage backend supports HTTP Byte Serving"*), so the map would render
+nothing at all — byte serving is not an optimisation here, it is the difference between a map and
+no map. The separate origin is what forces the CORS preflight (`Range` is not a safelisted request
+header), which is the classic way this breaks in production. Its header set mirrors
 `infra/modules/storage.bicep` — keep the two side by side.
 
 **The skeleton is asserted from both sides.** `tiles.spec.ts` says `.skeleton` never appears in
