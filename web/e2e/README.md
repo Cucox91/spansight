@@ -23,15 +23,24 @@ README and the `e2e` job in `.github/workflows/ci.yml`).
 
 ## Running the tiles suite
 
-It needs a real PMTiles archive. Build one from the committed fixture with the production script —
-nothing is committed, and the output lands in gitignored `artifacts/`:
+It needs a real PMTiles archive. Nothing is committed; the output lands in gitignored `artifacts/`.
+
+`build-tiles.sh` exports whatever is in the database it is pointed at, and on a dev machine that is
+usually the full national load — which builds fine (22 MB) and the suite passes against it, but
+takes a few minutes. For a 10 KB archive that matches what CI builds, point it at a scratch
+database holding only the fixture:
 
 ```bash
-tools/build-tiles.sh --out-dir artifacts/tiles
+CS="Host=localhost;Port=5432;Database=spansight_e2e;Username=spansight;Password=spansight"
+createdb -h localhost -U spansight spansight_e2e     # once
+dotnet run --project src/SpanSight.Ingestion -- load \
+  --file src/tests/fixtures/nbi_sample_2025.csv --snapshot-year 2025 --connection "$CS"
+tools/build-tiles.sh --out-dir artifacts/tiles --connection "$CS"
 ```
 
-Requires `tippecanoe` (`brew install tippecanoe`; CI builds 2.79.0 from source and caches it). The
-fixture archive is about 10 KB.
+Point the API at the same database (`ConnectionStrings__SpanSight="$CS"`) so the drawer test reads
+the same structures the tiles carry. Requires `tippecanoe` (`brew install tippecanoe`; CI builds
+2.79.0 from source and caches it).
 
 Then, from `web/`:
 
