@@ -520,4 +520,100 @@ test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
     const results = await new AxeBuilder({ page }).exclude('.maplibregl-map').analyze()
     expect(severe(results.violations)).toEqual([])
   })
+
+  // Every scan above runs at Playwright's 1280px default, and two of the three serious defects the
+  // P1-W6 pass found were invisible at that width and only at that width:
+  //
+  //   - the header is one 52px row needing 897px, and below ~700px it overflowed its own background
+  //     rather than wrapping, so three of the five destinations and the search box were laid out in
+  //     white on the light page behind it — three contrast failures per route, at 1.07:1;
+  //   - `.qa-table-wrap` only scrolls when the viewport is narrower than the table, and axe's
+  //     scrollable-region-focusable only fires on a region that is actually scrolling.
+  //
+  // A suite that only ever looks at a desktop viewport cannot see either. These run the same four
+  // Phase 1 routes at 375px.
+  test.describe('at a phone viewport (375px)', () => {
+    test.use({ viewport: { width: 375, height: 812 } })
+
+    // Each route names the element the scan exists to reach, and the test waits for *that* rather
+    // than for any heading. Waiting on a heading is not a readiness gate: every one of these pages
+    // renders its <h2> before the fetch resolves and again in its error branch, so a route whose
+    // API is down would scan the chrome, find nothing, and report success — which is a green tick
+    // for a page that never rendered.
+    const MOBILE_ROUTES: Array<[string, string, string]> = [
+      // Renders StructureTable, whose scrolling wrapper is one of the four this pass made
+      // focusable. Structure rankings have no sample-size floor, so they populate at fixture scale.
+      ['high-ADT ranking', '/rankings?view=high-adt-poor&limit=10', 'region:Ranked structures'],
+      // Both report-card tables: the condition counts and the year-by-year history.
+      ['county report card', '/county/12086', "region:Condition of this county's structures"],
+      ['county report card history', '/county/12086', 'region:Condition over time for this county'],
+      ['trends', '/trends?level=state&fips=12', 'region:Condition over time for Florida'],
+      [
+        'patterns',
+        '/patterns?component=Deck&typeGroup=Girder+%2F+Stringer&materialGroup=Steel&region=Northeast',
+        'group:Transition matrix',
+      ],
+      ['QA', '/qa', 'region:Join misses by reason'],
+      // The empty state, deliberately: a ranking whose every group falls below the n>=50 floor is
+      // what the CI fixture produces, and it is a rendered state like any other.
+      ['rankings, all groups below the floor', '/rankings?groupBy=county&limit=10', 'text:No group in this snapshot'],
+    ]
+
+    for (const [name, path, expected] of MOBILE_ROUTES) {
+      test(`${name} has no serious/critical violations at 375px (NFR-7)`, async ({ page }) => {
+        await page.goto(path)
+
+        const [kind, value] = [expected.slice(0, expected.indexOf(':')), expected.slice(expected.indexOf(':') + 1)]
+        const target =
+          kind === 'text'
+            ? page.getByText(new RegExp(value))
+            : page.getByRole(kind as 'region' | 'group', { name: value })
+        await expect(target, `${path} never rendered ${expected}`).toBeVisible({ timeout: 20_000 })
+
+        const results = await new AxeBuilder({ page }).exclude('.maplibregl-map').analyze()
+        expect(severe(results.violations)).toEqual([])
+      })
+    }
+
+    // Known gap, stated rather than papered over: GroupTable — the worst-condition ranking's table
+    // — cannot render at fixture scale. RankingEndpoints applies a floor of 50 rated structures per
+    // group, and the 114-row fixture's largest county has 15 and its largest state 21, so the route
+    // renders "No group in this snapshot meets the inclusion rule" and the table is never mounted.
+    // Its focusable wrapper is therefore covered only by the full-scale local run, where reverting
+    // the tabIndex does fail the scan. Closing this properly needs a ranking fixture that clears
+    // the floor, which is its own change.
+
+    // The contrast rule catches the header defect only because the overflowed items land on a pale
+    // background; a future header that overflows onto a dark one would pass axe and still be
+    // unreachable. This asserts the geometry instead: nothing in the header may sit outside it.
+    // Every width from a phone up to where the row genuinely fits. The first version of this fix
+    // pinned the wrap to a `max-width: 700px` media query while the row needs 897 px, which left
+    // 701-896 as broken as before and passed this test anyway because it only ran at 375. The
+    // widths below straddle that band deliberately: 768 is an iPad in portrait.
+    for (const width of [375, 414, 701, 768, 896, 1024]) {
+      test(`the header wraps rather than overflowing off-screen at ${width}px (NFR-7)`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 812 })
+        await page.goto('/rankings?groupBy=state&limit=10')
+        await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible({ timeout: 20_000 })
+
+        const overflow = await page.evaluate(() => {
+          const header = document.querySelector('.app-header') as HTMLElement
+          const right = header.getBoundingClientRect().right
+          return [...header.querySelectorAll('a, button, input')]
+            .filter((el) => el.getBoundingClientRect().right > right + 1)
+            .map((el) => el.textContent?.trim() || el.getAttribute('aria-label') || el.tagName)
+        })
+
+        expect(overflow, 'header controls laid out past the header itself').toEqual([])
+
+        // And the page itself must not scroll sideways — the symptom a reader actually sees.
+        const horizontallyScrolls = await page.evaluate(
+          () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        )
+        expect(horizontallyScrolls, 'the document scrolls horizontally').toBe(false)
+      })
+    }
+  })
 })

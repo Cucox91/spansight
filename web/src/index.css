@@ -41,12 +41,19 @@ body {
 }
 
 /* ============ HEADER ============ */
+/* Wrapping is unconditional rather than pinned to a breakpoint. The row needs 897 px for its
+   logo, five destinations and search box, and a fixed `height` with no wrap meant anything past
+   the viewport was laid out *outside* the header's background box — white text on the light page
+   behind it, unreachable, at every width below 897 and not only on a phone. A breakpoint here
+   would just be a second number to keep in step with the first; `flex-wrap` is a no-op until the
+   content actually does not fit, so the desktop row is unchanged. */
 .app-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
+  gap: 8px 20px;
   padding: 0 16px;
-  height: 52px;
+  min-height: 52px;
   background: var(--steel);
   color: #fff;
   flex-shrink: 0;
@@ -64,6 +71,7 @@ body {
 
 .app-header nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-left: 8px;
 }
@@ -1068,7 +1076,7 @@ select:focus-visible {
   max-width: 220px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .ranking-definition {
     grid-template-columns: 1fr;
     gap: 2px 0;
@@ -1076,5 +1084,25 @@ select:focus-visible {
 
   .ranking-definition dd {
     margin-bottom: 8px;
+  }
+
+  /* The wrap itself is unconditional (see .app-header). What is left here is only what a phone
+     wants once it has wrapped: the spacer exists to push the search box to the far end of a
+     single row, and once there is no single row it is an empty flex item adding a phantom gap. */
+  .app-header {
+    padding: 8px 12px;
+    gap: 8px 12px;
+  }
+
+  .app-header nav {
+    margin-left: 0;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .search {
+    width: 100%;
   }
 }

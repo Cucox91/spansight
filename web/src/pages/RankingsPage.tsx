@@ -208,7 +208,14 @@ function RankingResult({ ranking }: { ranking: Ranking }) {
 
 function GroupTable({ ranking }: { ranking: Ranking }) {
   return (
-    <div className="qa-table-wrap">
+    // Focusable, because the wrapper scrolls horizontally on a narrow screen and a region you can
+    // only reach with a pointer is a region a keyboard cannot read (axe scrollable-region-focusable,
+    // WCAG 2.1.1). QaPage does the same for its two tables. This one is not saved by the links
+    // inside it: a state or cohort ranking has no cell links at all, so there is nothing to tab to.
+    // Named for what it holds, not for the headline: the enclosing region already carries that,
+    // and two landmarks with the same role and the same name are one landmark as far as a screen
+    // reader's rotor is concerned (axe landmark-unique — the first draft of this fix tripped it).
+    <div role="region" aria-label="Ranked groups" tabIndex={0} className="qa-table-wrap">
       <table className="qa-table">
         <caption>
           {ranking.definition.headline}. Percentages are of rated structures; the unrated column is
@@ -257,7 +264,7 @@ function GroupTable({ ranking }: { ranking: Ranking }) {
 
 function StructureTable({ ranking }: { ranking: Ranking }) {
   return (
-    <div className="qa-table-wrap">
+    <div role="region" aria-label="Ranked structures" tabIndex={0} className="qa-table-wrap">
       <table className="qa-table">
         <caption>
           {ranking.definition.headline}. Traffic is item 29 as published in this snapshot, and is not
