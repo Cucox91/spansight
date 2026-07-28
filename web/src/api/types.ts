@@ -339,3 +339,106 @@ export interface NlQueryResponse {
   interpretation: string
   unsupported: string[]
 }
+
+/* ---------------------------------------------------------------- FR-1.4 rankings + report cards */
+
+/**
+ * What a ranking is and what it is not — server-authored and rendered beside the rows, because
+ * AC-1 requires the sort and inclusion rules to be displayed alongside the results.
+ *
+ * `excludedGroups` / `excludedStructures` are the pair that keeps the list honest: a ranking is an
+ * ordering, so a group whose share cannot be published has no position in it and is left out —
+ * these say how much was set aside.
+ */
+export interface RankingDefinition {
+  headline: string
+  sortedBy: string
+  includes: string
+  excludes: string
+  /** Null for a structure-level list, which has no share and therefore no denominator. */
+  denominator: string | null
+  minimumGroupSize: number | null
+  excludedGroups: number
+  excludedStructures: number
+  note: string
+}
+
+export interface RankingGroup {
+  rank: number
+  key: string
+  label: string
+  /** Present for state and county groupings — the deep link into the report card. */
+  fips: string | null
+  structures: number
+  rated: number
+  good: number
+  fair: number
+  poor: number
+  unrated: number
+  poorPercent: number
+}
+
+export interface RankingStructure {
+  rank: number
+  state: string
+  stateFips: string
+  structureNumber: string
+  countyFips: string | null
+  countyName: string | null
+  adt: number
+  conditionClass: ConditionClass
+  lowestRating: number | null
+  yearBuilt: number | null
+  facilityCarried: string | null
+  featuresIntersected: string | null
+}
+
+/** Exactly one of `groups` / `structures` is populated, decided by `view`. */
+export interface Ranking {
+  view: 'worst-condition' | 'high-adt-poor'
+  groupBy: 'state' | 'county' | 'cohort' | null
+  snapshotYear: number
+  scope: string | null
+  definition: RankingDefinition
+  groups: RankingGroup[]
+  structures: RankingStructure[]
+  csvUrl: string
+}
+
+/** All fields null together where the Census publishes a boundary but no ACS row (FR-1.5 AC-3). */
+export interface CountyPopulation {
+  estimate: number | null
+  marginOfError: number | null
+  acsVintage: number | null
+  acsPeriod: string | null
+  acsTable: string | null
+  citation: string
+  note: string
+}
+
+export interface CountyReportCard {
+  countyFips: string
+  countyName: string
+  stateFips: string
+  state: string
+  stateName: string
+  snapshotYear: number
+  structures: number
+  rated: number
+  good: number
+  fair: number
+  poor: number
+  unrated: number
+  /** Null, not zero, when nothing in the county carries a numeric rating. */
+  poorPercent: number | null
+  goodPercent: number | null
+  fairPercent: number | null
+  medianYearBuilt: number | null
+  totalAdt: number | null
+  population: CountyPopulation
+  /** Null until the FR-1.2 trend job has published this county. */
+  trend: TrendSeries | null
+  countsNote: string
+  methodNote: string
+  csvUrl: string
+}
