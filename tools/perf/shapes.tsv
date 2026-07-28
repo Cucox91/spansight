@@ -1,0 +1,52 @@
+# tools/perf/shapes.tsv — the query shapes the NFR-1 pass measures.
+#
+# One row per distinct shape the serving database can be asked for through the public API.
+# Tab-separated: id <TAB> requirement <TAB> label <TAB> path.
+#
+# The path is appended to --api (default http://localhost:5194). Parameters are chosen to be the
+# expensive end of each shape at national scale, not the convenient end: the largest county, a state
+# with the most structures, the deepest history, the widest cohort. A shape measured on its cheapest
+# input is not measured.
+#
+# Add a row here when an endpoint is added. perf-pass.sh reads this file and nothing else, so a
+# shape that is not in this file is a shape the NFR-1 evidence does not cover.
+#
+# id	requirement	label	path
+
+# --- FR-1.2 condition trends -------------------------------------------------------------------
+history-fetch	FR-1.2	Condition history, one structure (34 observed years)	/api/bridges/AK/1008/history
+history-fetch-tx	FR-1.2	Condition history, Texas structure	/api/bridges/TX/150950R00230001/history
+trends-state	FR-1.2	Trend series, largest state by structures (TX)	/api/trends?level=state&fips=48
+trends-county	FR-1.2	Trend series, largest county (Harris, TX)	/api/trends?level=county&fips=48201
+trends-state-window	FR-1.2	Trend series, year-windowed	/api/trends?level=state&fips=06&fromYear=2010&toYear=2025
+
+# --- FR-1.3 deterioration patterns -------------------------------------------------------------
+det-cohorts	FR-1.3	Cohort catalogue (groups every matrix row)	/api/deterioration/cohorts
+det-matrix-national	FR-1.3	National context matrix, Deck	/api/deterioration/matrix?component=Deck
+det-matrix-cohort	FR-1.3	Largest real cohort, Culvert / Concrete / South	/api/deterioration/matrix?component=Culvert&typeGroup=Culvert&materialGroup=Concrete&region=South
+det-matrix-subfloor	FR-1.3	A cohort with half its rows below the n>=50 floor	/api/deterioration/matrix?component=Deck&typeGroup=Other&materialGroup=Other&region=Northeast
+det-matrix-empty	FR-1.3	A cohort that validates but holds no rows	/api/deterioration/matrix?component=Deck&typeGroup=Other&materialGroup=Not%20published&region=West
+
+# --- FR-1.4 rankings and report cards ----------------------------------------------------------
+rank-state	FR-1.4	Worst-condition ranking grouped by state	/api/rankings?view=worst-condition&groupBy=state
+rank-county	FR-1.4	Worst-condition ranking grouped by county (3,216 groups)	/api/rankings?view=worst-condition&groupBy=county
+rank-cohort	FR-1.4	Worst-condition ranking grouped by cohort	/api/rankings?view=worst-condition&groupBy=cohort
+rank-county-scoped	FR-1.4	Worst-condition counties within one state	/api/rankings?view=worst-condition&groupBy=county&state=48
+rank-high-adt	FR-1.4	High-traffic structures in Poor condition	/api/rankings?view=high-adt-poor
+rank-high-adt-max	FR-1.4	The same at the 500-row cap	/api/rankings?view=high-adt-poor&limit=500
+rank-high-adt-small	FR-1.4	High-traffic Poor structures in a small state (VT)	/api/rankings?view=high-adt-poor&state=50
+rank-county-csv	FR-1.4	CSV twin of the county ranking	/api/rankings.csv?view=worst-condition&groupBy=county
+rank-high-adt-csv	FR-1.4	CSV twin of the high-ADT ranking at the cap	/api/rankings.csv?view=high-adt-poor&limit=500
+county-card	FR-1.4	County report card, largest county (Harris, TX)	/api/counties/48201
+county-card-empty	FR-1.4	Report card for a retired Connecticut county code	/api/counties/09001
+county-card-csv	FR-1.4	CSV twin of the report card	/api/counties/48201.csv
+
+# --- FR-1.5 census join ------------------------------------------------------------------------
+qa-summary	FR-1.5	QA summary incl. the county-join coverage block	/api/qa/summary
+
+# --- Phase 0 shapes Phase 1 sits on top of -----------------------------------------------------
+stats-summary	FR-0.3	National stats summary	/api/stats/summary
+bridges-list	FR-0.2	Bridge list, filtered page	/api/bridges?state=48&conditionClass=Poor&pageSize=50
+bridges-geojson	FR-0.2	GeoJSON fallback payload (map without tiles)	/api/bridges/geojson?state=48&conditionClass=Poor
+bridge-detail	FR-0.2	One structure's detail (drawer)	/api/bridges/TX/150950R00230001
+lookups	FR-0.2	Static lookup vocabulary	/api/lookups

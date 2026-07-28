@@ -95,6 +95,18 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
                     b.MaterialCode,
                     b.ConditionClass,
                 });
+
+            // Every ranking and every report card asks the table which snapshot it is serving —
+            // `ORDER BY snapshot_year DESC LIMIT 1` — before it does anything else. Unindexed that
+            // is a parallel sequential scan of all 741k rows: measured at 38-53 ms on the dev Mac,
+            // where it was the single largest cost in both endpoints (the report card's own four
+            // queries total 1.1 ms). A B1ms has one vCPU and no parallel workers to hide it.
+            //
+            // The column holds one distinct value today, which is why this index looks pointless
+            // and is not: the schema permits a database holding more than one loaded snapshot, the
+            // endpoints ask for the newest, and an index is what makes "newest" a lookup instead of
+            // a scan. Postgres reads it backwards for the DESC order (NFR-1).
+            entity.HasIndex(b => b.SnapshotYear);
         });
 
         modelBuilder.Entity<QuarantineRow>(entity =>
