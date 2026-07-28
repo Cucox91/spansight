@@ -520,4 +520,62 @@ test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
     const results = await new AxeBuilder({ page }).exclude('.maplibregl-map').analyze()
     expect(severe(results.violations)).toEqual([])
   })
+
+  // Every scan above runs at Playwright's 1280px default, and two of the three serious defects the
+  // P1-W6 pass found were invisible at that width and only at that width:
+  //
+  //   - the header is one 52px row needing 897px, and below ~700px it overflowed its own background
+  //     rather than wrapping, so three of the five destinations and the search box were laid out in
+  //     white on the light page behind it — three contrast failures per route, at 1.07:1;
+  //   - `.qa-table-wrap` only scrolls when the viewport is narrower than the table, and axe's
+  //     scrollable-region-focusable only fires on a region that is actually scrolling.
+  //
+  // A suite that only ever looks at a desktop viewport cannot see either. These run the same four
+  // Phase 1 routes at 375px.
+  test.describe('at a phone viewport (375px)', () => {
+    test.use({ viewport: { width: 375, height: 812 } })
+
+    const MOBILE_ROUTES: Array<[string, string]> = [
+      ['rankings by county', '/rankings?groupBy=county&limit=10'],
+      // A state ranking, specifically: its rows carry no links, so its scrolling table has nothing
+      // focusable inside it. The county ranking's cells link to report cards and would satisfy
+      // scrollable-region-focusable by accident, which is how this one hid.
+      ['rankings by state', '/rankings?groupBy=state&limit=10'],
+      ['high-ADT ranking', '/rankings?view=high-adt-poor&limit=10'],
+      ['county report card', '/county/12086'],
+      ['trends', '/trends?level=state&fips=12'],
+      [
+        'patterns',
+        '/patterns?component=Deck&typeGroup=Girder+%2F+Stringer&materialGroup=Steel&region=Northeast',
+      ],
+      ['QA', '/qa'],
+    ]
+
+    for (const [name, path] of MOBILE_ROUTES) {
+      test(`${name} has no serious/critical violations at 375px (NFR-7)`, async ({ page }) => {
+        await page.goto(path)
+        await expect(page.getByRole('heading').first()).toBeVisible({ timeout: 20_000 })
+        const results = await new AxeBuilder({ page }).exclude('.maplibregl-map').analyze()
+        expect(severe(results.violations)).toEqual([])
+      })
+    }
+
+    // The contrast rule catches the header defect only because the overflowed items land on a pale
+    // background; a future header that overflows onto a dark one would pass axe and still be
+    // unreachable. This asserts the geometry instead: nothing in the header may sit outside it.
+    test('the header wraps rather than overflowing off-screen (NFR-7)', async ({ page }) => {
+      await page.goto('/rankings?groupBy=state&limit=10')
+      await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible({ timeout: 20_000 })
+
+      const overflow = await page.evaluate(() => {
+        const header = document.querySelector('.app-header') as HTMLElement
+        const right = header.getBoundingClientRect().right
+        return [...header.querySelectorAll('a, button, input')]
+          .filter((el) => el.getBoundingClientRect().right > right + 1)
+          .map((el) => el.textContent?.trim() || el.getAttribute('aria-label') || el.tagName)
+      })
+
+      expect(overflow, 'header controls laid out past the header itself').toEqual([])
+    })
+  })
 })

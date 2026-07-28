@@ -1077,4 +1077,33 @@ select:focus-visible {
   .ranking-definition dd {
     margin-bottom: 8px;
   }
+
+  /* The header is one 52px row — logo, five destinations, the search box — and it needs 897 px.
+     Below that it overflowed its own background box rather than wrapping, so Rankings, Data QA
+     and the search box were laid out past the right edge, in white, on the light page behind the
+     header: invisible and unreachable. axe read the same thing as three colour-contrast failures
+     (1.07:1 and 1.37:1) on every route, and only at narrow widths — which is why the desktop-only
+     scans had never seen it. Wrapping is the whole fix; the desktop row is untouched. */
+  .app-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 52px;
+    padding: 8px 12px;
+    gap: 8px 12px;
+  }
+
+  .app-header nav {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  /* The spacer exists to push the search box to the far end of a single row. Once the header
+     wraps there is no far end, and an empty flex item would only add a phantom gap. */
+  .spacer {
+    display: none;
+  }
+
+  .search {
+    width: 100%;
+  }
 }

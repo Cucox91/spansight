@@ -116,7 +116,15 @@ export default function CountyPage() {
                any governing item, so there is no condition share to state.`}
         </p>
       ) : (
-        <div className="qa-table-wrap">
+        // Focusable: the wrapper scrolls horizontally on a narrow screen, and neither of this
+        // page's tables holds a link, so there is nothing inside for a keyboard to land on
+        // (axe scrollable-region-focusable, WCAG 2.1.1). Same treatment as QaPage's tables.
+        <div
+          role="region"
+          aria-label="Condition of this county's structures"
+          tabIndex={0}
+          className="qa-table-wrap"
+        >
           <table className="qa-table">
             <caption>
               Counts from the current snapshot. Shares are of the {card.rated.toLocaleString()}{' '}
@@ -172,7 +180,12 @@ export default function CountyPage() {
         </p>
       ) : (
         <>
-          <div className="qa-table-wrap">
+          <div
+            role="region"
+            aria-label="Condition over time for this county"
+            tabIndex={0}
+            className="qa-table-wrap"
+          >
             <table className="qa-table">
               <caption>
                 Published Good/Fair/Poor counts per year, {trend.fromYear}–{trend.toYear}. Years FHWA
