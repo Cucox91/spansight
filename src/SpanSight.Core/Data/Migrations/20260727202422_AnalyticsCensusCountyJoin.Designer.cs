@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -13,9 +14,11 @@ using SpanSight.Core.Data;
 namespace SpanSight.Core.Data.Migrations
 {
     [DbContext(typeof(SpanSightDbContext))]
-    partial class SpanSightDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727202422_AnalyticsCensusCountyJoin")]
+    partial class AnalyticsCensusCountyJoin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -262,10 +265,6 @@ namespace SpanSight.Core.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("nbi_fips_in_tiger");
 
-                    b.Property<int>("Structures")
-                        .HasColumnType("integer")
-                        .HasColumnName("structures");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CountyJoinRunId");
@@ -407,10 +406,6 @@ namespace SpanSight.Core.Data.Migrations
                     b.Property<long>("DisagreementBridges")
                         .HasColumnType("bigint")
                         .HasColumnName("disagreement_bridges");
-
-                    b.Property<long>("DisagreementStructures")
-                        .HasColumnType("bigint")
-                        .HasColumnName("disagreement_structures");
 
                     b.Property<int>("Disagreements")
                         .HasColumnType("integer")

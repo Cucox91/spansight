@@ -55,6 +55,42 @@ test('QA page renders the reconciled run summary (FR-0.2 AC-3)', async ({ page }
   await expect(page.getByText('not engineering advice')).toBeVisible()
 })
 
+test('QA page publishes the county join coverage with its method note (FR-1.5 AC-2)', async ({
+  page,
+}) => {
+  await page.goto('/qa')
+  await expect(page.getByRole('heading', { name: 'County join coverage' })).toBeVisible({
+    timeout: 20_000,
+  })
+
+  // Data-agnostic: the section renders its published empty state when the join has not been
+  // loaded, and CI does load it. Either branch is correct; silently rendering neither is not.
+  const notPublished = page.getByText('has not been published yet')
+  if (await notPublished.isVisible()) {
+    test.skip(true, 'county join not published in this environment')
+  }
+
+  // A coverage figure is a percentage, and it must never be a bare "100%" while structures are
+  // quarantined — the API sends four decimals for exactly that reason.
+  await expect(
+    page.locator('.kpi', { hasText: 'Structures matched to a county' }).locator('.value'),
+  ).toHaveText(/\d+\.\d{4}%/)
+
+  // Every miss carries a reason, addressed structurally rather than by text.
+  const reasons = page.getByRole('region', { name: 'Join misses by reason' })
+  await expect(reasons.locator('tbody tr')).not.toHaveCount(0)
+  await expect(reasons.locator('[data-reason="on_county_boundary"]')).toHaveCount(1)
+
+  // GR-6: the rule the number was measured under is adjacent to the number, and the page says
+  // plainly that a disagreement is not a correction. The predicate is asserted in both places it
+  // appears — the server-authored method note and the provenance line — because a number whose
+  // provenance names a different rule than the caption is the failure worth catching.
+  const methodNote = page.getByText('Each published bridge coordinate was tested')
+  await expect(methodNote).toContainText('ST_Within')
+  await expect(methodNote).toContainText('not a correction')
+  await expect(page.getByText(/^Job county-join-/)).toContainText('ST_Within')
+})
+
 test('ask-the-map degrades to the Phase 0.5 notice while Ai:Enabled is false (FR-AI.1)', async ({
   page,
 }) => {

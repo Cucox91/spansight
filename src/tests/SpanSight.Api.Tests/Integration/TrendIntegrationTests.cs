@@ -311,7 +311,11 @@ public class TrendIntegrationTests(PostgisApiFixture fixture)
         var county = await GetJsonAsync("/api/trends?level=county&fips=12086");
 
         Assert.Equal("County", county.GetProperty("level").GetString());
-        Assert.Contains("Florida", county.GetProperty("name").GetString());
+        // The label was a synthesized "County FIPS 086, Florida" until FR-1.5 published a real
+        // Census name for this code. The rollups are still keyed on the county code item 3
+        // publishes — only the label changed — and the fallback for a code TIGER no longer carries
+        // is pinned in CountyJoinIntegrationTests.
+        Assert.Equal("Miami-Dade County", county.GetProperty("name").GetString());
         Assert.Equal(6, county.GetProperty("points").GetArrayLength());
     }
 

@@ -37,6 +37,22 @@ public sealed class DuckDbOnlyTheoryAttribute : TheoryAttribute
     public DuckDbOnlyTheoryAttribute() => Skip = DuckDb.CliSkipReason;
 }
 
+/// <summary>
+/// For the FR-1.5 county-join tests. A third prerequisite set: the DuckDB CLI <em>with the spatial
+/// extension</em> plus the six-county census fixture Parquet — but not the vintage Parquet, since
+/// the bridge side is a committed CSV of hand-placed points.
+/// </summary>
+public sealed class CountyJoinFactAttribute : FactAttribute
+{
+    public CountyJoinFactAttribute() => Skip = DuckDb.CountyJoinSkipReason;
+}
+
+/// <summary>Theory form of <see cref="CountyJoinFactAttribute"/>.</summary>
+public sealed class CountyJoinTheoryAttribute : TheoryAttribute
+{
+    public CountyJoinTheoryAttribute() => Skip = DuckDb.CountyJoinSkipReason;
+}
+
 /// <summary>Runs DuckDB the same way <c>tools/trends/build-trends.sh</c> does, from the repo root.</summary>
 internal static class DuckDb
 {
@@ -140,6 +156,68 @@ internal static class DuckDb
           FROM read_csv('src/tests/fixtures/deterioration/synthetic_vintages.csv', all_varchar=true);
         """,
         Path.Combine("tools", "deterioration", "deterioration.sql"));
+
+    /// <summary>
+    /// Null when the FR-1.5 county-join golden tests can run: the CLI, the spatial extension, and
+    /// the census fixture Parquet. Each prerequisite reports itself, so a missing build artefact
+    /// does not surface as an opaque DuckDB catalog error.
+    /// </summary>
+    public static string? CountyJoinSkipReason =>
+        CliSkipReason
+        ?? (!SpatialAvailable.Value
+            ? "The DuckDB spatial extension is unavailable (it needs one network fetch to install)."
+            : !CensusFixtureParquetExists
+                ? "Census fixture Parquet missing — run tools/census/convert.sh --fixtures first."
+                : null);
+
+    private static readonly Lazy<bool> SpatialAvailable = new(() =>
+    {
+        try
+        {
+            return Run("INSTALL spatial; LOAD spatial; SELECT 1;") == "1";
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    });
+
+    public static bool CensusFixtureParquetExists =>
+        File.Exists(Path.Combine(
+            RepositoryRoot, "data", "census", "fixtures-out", "parquet", "counties.parquet"));
+
+    /// <summary>
+    /// The FR-1.5 join over the committed hand-placed points and the six-county census fixture.
+    /// <para>
+    /// Wired exactly as <c>tools/census/join-counties.sh --fixtures</c> wires it — the same spatial
+    /// prelude, the same three source relations, the same real <c>county-join.sql</c> — so the test
+    /// and the script cannot drift into reading the fixture differently. The one thing it does not
+    /// copy is the script's materialisation of <c>cj_assignment</c>, which is a performance step for
+    /// 741k points and would hide a view that no longer resolves.
+    /// </para>
+    /// </summary>
+    public static string CreateCountyJoinInitScript() => WriteInitScript(
+        """
+        INSTALL spatial; LOAD spatial; SET geometry_always_xy = true;
+        CREATE OR REPLACE TABLE bridge_source AS
+            SELECT CAST(state_code AS VARCHAR) AS state_code,
+                   CAST(structure_number AS VARCHAR) AS structure_number,
+                   CAST(record_type AS VARCHAR) AS record_type,
+                   CAST(county_code AS VARCHAR) AS county_code,
+                   CAST(lon AS DOUBLE) AS lon,
+                   CAST(lat AS DOUBLE) AS lat
+            FROM read_csv('src/tests/fixtures/census-join/bridge_points.csv', all_varchar=true);
+        CREATE OR REPLACE TABLE county_source AS
+            SELECT GEOID AS geoid, STATEFP AS statefp, COUNTYFP AS countyfp, NAME AS name,
+                   NAMELSAD AS namelsad, ALAND AS aland, AWATER AS awater,
+                   TIGER_VINTAGE AS tiger_vintage, geom
+            FROM read_parquet('data/census/fixtures-out/parquet/counties.parquet');
+        CREATE OR REPLACE TABLE population_source AS
+            SELECT GEOID AS geoid, POP_EST AS pop_est, POP_MOE AS pop_moe,
+                   ACS_VINTAGE AS acs_vintage, ACS_PERIOD AS acs_period, ACS_TABLE AS acs_table
+            FROM read_parquet('data/census/fixtures-out/parquet/county_population.parquet');
+        """,
+        Path.Combine("tools", "census", "county-join.sql"));
 
     private static string WriteInitScript(string sourceSql, string relativeSqlPath)
     {

@@ -471,10 +471,71 @@ table.attrs td:first-child {
   color: var(--muted);
 }
 
+.qa-page h4 {
+  font-size: 12px;
+  color: var(--fg);
+  margin: 18px 0 6px;
+}
+
 .qa-meta {
   color: var(--muted);
   font-size: 12px;
   margin-top: 4px;
+}
+
+/* FR-1.5 join-coverage tables. Wide content scrolls inside its own container so the page body
+   never scrolls sideways; the wrapper is focusable in the TSX for axe scrollable-region-focusable. */
+.qa-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.qa-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.qa-table caption {
+  caption-side: top;
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.qa-table th,
+.qa-table td {
+  border: 1px solid var(--line);
+  padding: 5px 9px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qa-table thead th {
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.qa-table tbody th[scope='row'] {
+  background: var(--bg);
+  text-align: left;
+  font-weight: 600;
+  white-space: normal;
+}
+
+/* Carries meaning, so it is words in the DOM and not a colour: a retired code is why a
+   disagreement exists, and a reader must get that from the text alone (NFR-7). */
+.qa-flag {
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
 }
 
 /* ============ LOADING SKELETON ============ */

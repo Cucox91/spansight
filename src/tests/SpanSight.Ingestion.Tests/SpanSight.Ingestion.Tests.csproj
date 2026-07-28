@@ -22,6 +22,7 @@
   <ItemGroup>
     <Content Include="..\fixtures\nbi_sample_2025.csv" Link="fixtures\nbi_sample_2025.csv" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\trends\*" LinkBase="fixtures\trends" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\census-join-aggregates\*" LinkBase="fixtures\census-join-aggregates" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\fixtures\vintages\*.txt" LinkBase="fixtures\vintages" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

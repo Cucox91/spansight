@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "runId": "county-join-fixture",
+  "catalogSha256": "fixtures",
+  "source": "src/tests/fixtures/census-join/bridge_points.csv",
+  "countySource": "data/census/fixtures-out/parquet/counties.parquet",
+  "methodVersion": "v1.0",
+  "containmentPredicate": "ST_Within",
+  "nearestSearchDegrees": 2.0,
+  "minStateAgreementShare": 0.9,
+  "bridges": 16,
+  "matched": 13,
+  "unmatched": 3,
+  "structures": 15,
+  "structuresMatched": 12,
+  "agree": 10,
+  "differentCountySameState": 1,
+  "differentState": 1,
+  "countyNotPublished": 1,
+  "counties": 6,
+  "countiesWithoutPopulation": 1,
+  "misses": 3,
+  "disagreements": 3,
+  "disagreementBridges": 3,
+  "disagreementStructures": 3,
+  "missDistance": [
+    {
+      "bucket": "1 km to 10 km",
+      "misses": 1
+    },
+    {
+      "bucket": "no county within the search radius",
+      "misses": 1
+    },
+    {
+      "bucket": "on a county boundary",
+      "misses": 1
+    }
+  ],
+  "disagreementByState": [
+    {
+      "state_fips": "12",
+      "bridges": 1,
+      "structures": 1,
+      "pairs": 1,
+      "bridges_under_retired_code": null,
+      "structures_under_retired_code": null
+    },
+    {
+      "state_fips": "48",
+      "bridges": 1,
+      "structures": 1,
+      "pairs": 1,
+      "bridges_under_retired_code": 1,
+      "structures_under_retired_code": 1
+    }
+  ],
+  "retiredCodes": [
+    {
+      "nbi_county_fips": "48389",
+      "bridges": 1,
+      "structures": 1
+    },
+    {
+      "nbi_county_fips": "15003",
+      "bridges": 1,
+      "structures": 1
+    }
+  ],
+  "populationAbsent": [
+    {
+      "state_fips": "60",
+      "counties": 1
+    }
+  ]
+}

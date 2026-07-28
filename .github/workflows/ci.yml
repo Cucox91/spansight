@@ -51,6 +51,21 @@ jobs:
         run: |
           tools/deterioration/build-deterioration.sh --fixtures
           tools/deterioration/build-deterioration.sh --synthetic
+      # FR-1.5: the Census staging fixture and the bridge→county join over it. This moved ahead of
+      # `dotnet test` when the join arrived: CountyJoinGoldenTests executes
+      # tools/census/county-join.sql itself against data/census/fixtures-out/parquet, so with the
+      # conversion still running after the tests those 36 assertions would skip on their
+      # prerequisite and a drift in the join would reach main with CI green.
+      #
+      # verify-fixtures.sh asserts the two properties a row count cannot see (the boundaries answer
+      # point-in-polygon; the FIPS keys are still zero-padded text). join-counties.sh --fixtures
+      # then runs the join's own eight invariants over 16 hand-placed points. Fixture-only; no
+      # download, and no database — the bridge side in fixture mode is a committed CSV.
+      - name: Convert + verify census fixtures, then join (FR-1.5)
+        run: |
+          tools/census/convert.sh --fixtures
+          tools/census/verify-fixtures.sh
+          tools/census/join-counties.sh --fixtures
       - name: Test with line coverage
         run: >
           dotnet test SpanSight.slnx --no-build --configuration Release
@@ -63,13 +78,6 @@ jobs:
       # here because ubuntu-latest ships a working Docker daemon.
       - name: Coverage gate (NFR-5)
         run: python3 tools/coverage-gate.py --results-dir artifacts/coverage --threshold 70
-      # FR-1.5: the same shape for the Census staging — convert the committed six-county fixture,
-      # then assert the two properties a row count cannot see (the boundaries answer
-      # point-in-polygon; the FIPS keys are still zero-padded text). Fixture-only; no download.
-      - name: Convert + verify census fixtures (FR-1.5)
-        run: |
-          tools/census/convert.sh --fixtures
-          tools/census/verify-fixtures.sh
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -152,6 +160,13 @@ jobs:
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load-deterioration --file src/tests/fixtures/deterioration-aggregates
+      # FR-1.5: the county-join fixture, so the QA page's coverage section renders with real numbers
+      # instead of its "not published yet" branch — a section that only ever renders empty in CI is a
+      # section the e2e suite is not testing.
+      - name: Load county join coverage (FR-1.5)
+        run: >
+          dotnet run --project src/SpanSight.Ingestion --configuration Release --
+          load-county-join --file src/tests/fixtures/census-join-aggregates
       - name: Start API
         run: |
           dotnet run --project src/SpanSight.Api --configuration Release --launch-profile http &

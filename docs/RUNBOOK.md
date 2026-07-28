@@ -472,3 +472,113 @@ TRUNCATE analytics.deterioration_run CASCADE;
 
 The Patterns view then renders an empty 10×10 grid with every row marked insufficient, which is its
 published empty state. Nothing 500s, and no other view is affected.
+
+## 10.5 Publish the county join to the demo (added 2026-07-27)
+
+> **What this is.** The bridge→county point-in-polygon join and the county reference it needs:
+> TIGER names and areas, ACS population, the join-coverage metric on `/qa`, and the misses it could
+> not place. FR-1.5 AC-2/AC-3.
+>
+> **What it is not.** It does not change which county a bridge is reported in. Item 3 remains the
+> published county everywhere in the product — the filters, the FR-1.2 trend rollups, the county
+> report card. This job measures how often the coordinate and the published code disagree and
+> publishes that gap; it never overrides the publisher (GR-6).
+
+Like §10.3 and §10.4 this **does** change the live demo: the QA page reads these tables, and the
+county trend label takes its name from them. It is additive, `core` is untouched, and it is
+independent of both other jobs — a bad join publish cannot take the sparkline or the matrices down.
+
+### Build the join **[RAZIEL or CC]** — local only, needs the serving database
+
+Unlike §10.3/§10.4 this job reads the **bridge side from a database**, because AC-2 asks for the
+share of the bridges a reader is actually served and because the WGS84 point there was produced by
+the one tested DMS decoder (`county-join.sql` §0 explains both). Point it at whichever database you
+mean to describe — locally that is the compose instance, and the default needs no flag:
+
+```bash
+tools/census/download.sh && tools/census/convert.sh   # once; TIGER + ACS staging (§ FR-1.5 AC-1)
+tools/census/join-counties.sh                          # → data/census/join/
+```
+
+It refuses to write anything unless all eight invariants pass (one assignment per served row;
+assigned + quarantined accounting for every input row via a full outer join, so a row lost from both
+sides is a violation too; the coverage row recomputed from the detail relations; the sign-convention
+guard; no over-long county code silently truncated by DuckDB's `lpad`; the county key still
+five-digit text; every miss reason matching its own evidence; every disagreement naming a polygon
+that resolves), so a green run is the check.
+
+The sign-convention guard is the one worth understanding before you trust a coverage figure. NBI
+publishes longitude unsigned and west-positive; a decoder regression mirrors every point into the
+eastern hemisphere, and row counts survive that unchanged — the join simply matches nothing. So the
+guard fires both when the matched share landing in the state item 1 published falls under 90% **and**
+when nothing matched at all.
+
+The 2026-07-27 run against the 2025 snapshot: **741,131 served rows, 741,076 matched (99.9926%), 55
+quarantined**; 623,350 record-type-1 structures with 623,331 matched (99.9970%); 3,235 counties
+published, 13 with no ACS population row. About 10 seconds. Cross-check against item 3: 726,543
+agree (98.04%), 13,280 another county of the same state, 853 another state, 400 no code published.
+
+Two numbers in that output are worth reading before publishing. **8 published county codes are
+absent from the boundary file, covering 5,644 served rows — 4,362 of them record-type-1
+structures** — all Connecticut, where item 3 still carries the eight legacy counties the Census
+replaced with nine planning regions for 2022. Both counts are printed because the serving table also
+holds the routes published under a structure, and they are 19% of it. Those
+disagree because the code names a county that no longer exists, not because the coordinate is wrong,
+and the QA page says so. And **2 of the 55 misses are `on_county_boundary`**: structures sitting
+exactly on a county line, which `ST_Within` leaves unassigned rather than picking one of the two
+counties that share it.
+
+### Publish it **[RAZIEL]** — the az login is yours
+
+Same Entra-token pattern and firewall dance as §3, §10.3 and §10.4. Note that the build above and
+the publish below should describe the **same** database: building against local compose and
+publishing to the demo would state a coverage share for an inventory the demo does not hold.
+
+```bash
+az postgres flexible-server firewall-rule create -g rg-spansight-demo -s psql-spansight-demo \
+  --name dev-mac --start-ip-address "$(curl -fsS https://api.ipify.org)" --end-ip-address "$(curl -fsS https://api.ipify.org)"
+
+TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+CONN="Host=psql-spansight-demo.postgres.database.azure.com;Database=spansight;Username=<your-upn-truncated-to-63>;Password=$TOKEN;Ssl Mode=Require;Command Timeout=300"
+
+tools/census/join-counties.sh --connection "$CONN"    # measure the demo's inventory
+dotnet run -c Release --project src/SpanSight.Ingestion -- load-county-join --file data/census/join --connection "$CONN"
+
+az postgres flexible-server firewall-rule delete -g rg-spansight-demo --server-name psql-spansight-demo --name dev-mac --yes
+```
+
+`load-county-join` applies pending migrations itself, so no separate migrate step. The whole publish
+is ~3.3 k rows and takes under a second locally.
+
+The load runs inside one transaction and reconciles each file against `manifest.json` before it
+commits, so a rejected build leaves the tables exactly as they were. It separately refuses a
+`miss.csv` that does not account for every unmatched bridge — a short quarantine file is the one
+corruption that would make coverage look honest while hiding the structures it could not place.
+
+Re-running the same job id is a logged no-op. Rebuilding produces a new job id and re-publishes, and
+rows the new job no longer contains are deleted in the same load, so the tables converge rather than
+accumulate (NFR-3).
+
+Verify from the public API, not from the database:
+
+```bash
+curl -s "https://www.spansights.com/api/qa/summary" | jq '.countyJoin | {coveragePercent, structureCoveragePercent, unmatched, counties, bridgesUnderRetiredCodes, provenance}'
+curl -s "https://www.spansights.com/api/trends?level=county&fips=12086" | jq '.name'
+```
+
+Expect a `containmentPredicate` of `ST_Within`, a `catalogSha256` matching
+`shasum -a 256 tools/census/catalog.json`, and `"Miami-Dade County"` from the second call — a
+`County FIPS 086, Florida` there means the join has not been published, since that is the label
+FR-1.2 falls back to when no Census name exists for the code.
+
+**Rollback:** the join is additive and fully rebuildable. To remove it entirely:
+
+```sql
+-- Cascades to census_county, county_join_miss and county_join_disagreement.
+-- core.bridge, FR-1.2's analytics.trend_run and FR-1.3's analytics.deterioration_run are untouched.
+TRUNCATE analytics.county_join_run CASCADE;
+```
+
+The QA page then renders its published empty state — "the bridge-to-county join has not been
+published yet", with the two commands to build and load it — and county trend labels revert to
+`County FIPS nnn, State`. Nothing 500s, and no other view is affected.

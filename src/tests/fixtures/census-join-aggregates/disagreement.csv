@@ -1,0 +1,4 @@
+nbi_county_fips,county_fips,kind,bridges,structures,nbi_fips_in_tiger
+12086,06037,different_state,1,1,true
+48389,48301,different_county_same_state,1,1,false
+,17031,county_not_published,1,1,

@@ -1,0 +1,7 @@
+county_fips,state_fips,name,name_lsad,land_area_m2,water_area_m2,tiger_vintage,population,population_moe,acs_vintage,acs_period,acs_table
+06037,06,Los Angeles,Los Angeles County,10516101987,1784889482,2025,9808667,,2024,2020-2024,B01003
+12086,12,Miami-Dade,Miami-Dade County,4920945684,1267367219,2025,2738356,,2024,2020-2024,B01003
+17031,17,Cook,Cook County,2447358069,1786339736,2025,5182090,,2024,2020-2024,B01003
+48301,48,Loving,Loving County,1732230055,19981167,2025,33,30,2024,2020-2024,B01003
+60010,60,Eastern,Eastern District,65124865,349724678,2025,,,,,
+72001,72,Adjuntas,Adjuntas Municipio,172707710,1051110,2025,17960,,2024,2020-2024,B01003

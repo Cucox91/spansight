@@ -38,6 +38,9 @@ public sealed class PostgisApiFixture : IAsyncLifetime
     /// <summary>FR-1.3 — the hand-written matrix fixture, loaded through the real deterioration pipeline.</summary>
     public DeteriorationLoadSummary DeteriorationSeedSummary { get; private set; } = null!;
 
+    /// <summary>FR-1.5 — the hand-placed county-join fixture, loaded through the real join pipeline.</summary>
+    public CountyJoinLoadSummary CountyJoinSeedSummary { get; private set; } = null!;
+
     public HttpClient Client { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -48,6 +51,7 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         SeedSummary = await LoadFixtureAsync(force: false);
         TrendSeedSummary = await LoadTrendsAsync(force: false);
         DeteriorationSeedSummary = await LoadDeteriorationAsync(force: false);
+        CountyJoinSeedSummary = await LoadCountyJoinAsync(force: false);
 
         _factory = new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(builder =>
         {
@@ -99,6 +103,21 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         var pipeline = new DeteriorationLoadPipeline(db, NullLogger<DeteriorationLoadPipeline>.Instance);
         return await pipeline.RunAsync(
             directory ?? Path.Combine(AppContext.BaseDirectory, "fixtures", "deterioration-aggregates"),
+            dryRun: false,
+            force: force);
+    }
+
+    /// <summary>
+    /// Publishes the committed county-join fixture through the production loader (FR-1.5), so the
+    /// QA and report-card tests read rows that went through the same upsert, reconciliation and
+    /// convergence path as a real publish.
+    /// </summary>
+    public async Task<CountyJoinLoadSummary> LoadCountyJoinAsync(bool force, string? directory = null)
+    {
+        await using var db = NewDbContext();
+        var pipeline = new CountyJoinLoadPipeline(db, NullLogger<CountyJoinLoadPipeline>.Instance);
+        return await pipeline.RunAsync(
+            directory ?? Path.Combine(AppContext.BaseDirectory, "fixtures", "census-join-aggregates"),
             dryRun: false,
             force: force);
     }
