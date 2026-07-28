@@ -44,9 +44,13 @@ From a fresh load, before any page content:
 say so plainly and move on; for the backlog, a skip link is the single highest-value keyboard
 change left in the app.
 
-At a phone width the header wraps into three rows (fixed in P1-W6 — it used to lay the last three
+Below about 900 px the header wraps into rows (fixed in P1-W6 — it used to lay the last three
 controls out past the right edge of its own background, where they were white on white and
-unreachable). The tab order is unchanged by the wrap.
+unreachable, at *every* width below the 897 px the row needs, not only on a phone). The tab order is
+unchanged by the wrap.
+
+Every order below was **measured** by pressing Tab against the running app, not read off the JSX —
+the first draft of this file was written from source order and got two of the routes wrong.
 
 ## `/trends?level=state&fips=12`
 
@@ -74,35 +78,43 @@ put it on the backlog.
 
 ## `/rankings?groupBy=county&limit=10`
 
-7 View · 8 Group by · 9 State · 10 Show · 11 **the result region** · 12–21 **one link per row** ·
-22 Download CSV · 23 footer link.
+Measured, at `limit=10`:
 
-Two things to know before scripting this one:
+7 View · 8 Group by · 9 State · 10 Show · 11 **the result region** · 12 **the table region**
+("Ranked groups") · 13–22 **one county link per row** · 23 Download CSV · 24 footer link.
+
+Three things to know before scripting this one:
 
 - **Stop 8 disappears** when View is set to "High traffic, Poor condition" — the grouping control is
-  removed from the DOM, and the tab ring shortens by one underneath the narrator.
-- **Stops 12–21 are the rows.** At `limit=10` that is ten stops; at 100 it is a hundred, with no way
-  to bypass them and no way to reach the CSV link except through all of them. Demo at `limit=10`.
-  A skip mechanism past a long ranking belongs on the backlog with the skip link.
-
-Only the *county* ranking has row links. The state and cohort rankings have none — which is why
-their scrolling table needed an explicit tab stop (P1-W6): with nothing focusable inside, a
-horizontally scrolling region was unreachable by keyboard at narrow widths. It now has one, named
-"Ranked groups".
+  removed from the DOM and the tab ring shortens by one underneath the narrator. That view's table
+  region is named "Ranked structures", and it carries **two** links per row (the structure and its
+  county), so its row block is twice as long: 12 → 31 at `limit=10`.
+- **Stops 13–22 are the rows.** At `limit=10` that is ten stops; at `limit=100` it is a hundred,
+  with no way to bypass them and no way to reach the CSV link except through all of them. Demo at
+  `limit=10`. A skip mechanism past a long ranking belongs on the backlog with the skip link.
+- **Stop 12 is new in P1-W6** and applies to *every* grouping, not only the ones that needed it.
+  `GroupTable` is one component rendered for county, state and cohort alike, so giving it a tab stop
+  gave one to all three. The state and cohort rankings are the ones that needed it — their rows
+  carry no links at all, so their horizontally scrolling table had nothing focusable inside and was
+  unreachable by keyboard at narrow widths. The county ranking was already reachable, by accident,
+  through its row links.
 
 ## `/county/12086`
 
-7 **the page region** ("Report card for Miami-Dade County") · 8 Show on the map · 9 Download as CSV ·
-10 See this series as a chart *(only when a trend exists)* · 11 **condition table** ·
-12 **history table** · 13 footer link.
+Measured:
 
-Stops 11 and 12 are new in P1-W6. Neither table holds a link, so before the fix both scrolled with
+7 **the page region** ("Report card for Miami-Dade County") · 8 Show on the map · 9 Download as CSV ·
+10 **condition table** · 11 **history table** · 12 See this series as a chart *(only when a trend
+exists)* · 13 footer link.
+
+Stops 10 and 11 are new in P1-W6. Neither table holds a link, so before the fix both scrolled with
 no keyboard access at all on a narrow screen. They are named "Condition of this county's structures"
 and "Condition over time for this county".
 
-Stop 10 is conditional: an empty or retired-code county does not render it, so the ring is 12 long
-there rather than 13. `/county/09001` — a Connecticut code NBI still publishes and TIGER no longer
-carries — is the state to demo that with.
+Note the chart link comes **after** both tables, not before them — it sits at the bottom of the
+history section in the DOM. On a county with no trend it is not rendered at all and the history
+table is absent too, so the ring is 11 long rather than 13. `/county/09001` — a Connecticut code NBI
+still publishes and TIGER no longer carries — is the state to demo that with.
 
 ## `/` (the explorer) and the drawer
 
