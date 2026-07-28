@@ -1,0 +1,4 @@
+# Golden CSV exports are compared byte for byte (FR-1.4 AC-3). A CRLF-normalising checkout —
+# the Windows migration planned at the P1→P2 seam is exactly that — would break every one of
+# those assertions for a reason that has nothing to do with the code.
+src/tests/fixtures/csv-exports/*.csv -text

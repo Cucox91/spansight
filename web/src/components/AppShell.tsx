@@ -19,6 +19,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/patterns" className={({ isActive }) => (isActive ? 'active' : '')}>
             Patterns
           </NavLink>
+          <NavLink to="/rankings" className={({ isActive }) => (isActive ? 'active' : '')}>
+            Rankings
+          </NavLink>
           {/* Disabled tabs advertise later phases instead of hiding them (DESIGN.md). */}
           <button disabled title="Phase 2">
             Live Ops<small>Phase 2</small>

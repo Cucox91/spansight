@@ -582,3 +582,18 @@ TRUNCATE analytics.county_join_run CASCADE;
 The QA page then renders its published empty state — "the bridge-to-county join has not been
 published yet", with the two commands to build and load it — and county trend labels revert to
 `County FIPS nnn, State`. Nothing 500s, and no other view is affected.
+
+### 10.6 FR-1.4 rankings and report cards — nothing to publish
+
+The rankings and the county report card read `core.bridge`, the FR-1.2 rollups and the FR-1.5
+county table directly. There is no offline job, no aggregate and no publish step: they are queries.
+
+The one operational note is that they ship an index — `ix_bridge_ranking`, a covering index on
+record type — which the `RankingCoveringIndex` migration creates. Every `load-*` command applies
+pending migrations before it writes, so the first publish of any job after this deploy creates it.
+Creating it takes a few seconds on 741k rows and holds a lock for that time; on a live server prefer
+`CREATE INDEX CONCURRENTLY` by hand first, after which the migration is a no-op.
+
+Without it the county and cohort groupings fall back to a parallel sequential scan — measured 74 ms
+against 40 ms locally, and worse on the single-vCPU B1ms, where there are no parallel workers.
+Correct either way, so this is a latency note and not a correctness one.

@@ -1,0 +1,27 @@
+# SpanSight county report card (FR-1.4)
+# County: Eastern District (60010), American Samoa
+# Snapshot year: 2025
+# Counts: Current serving inventory, record type 1.
+# Population: No ACS estimate is published for this county.
+# Population caveat: An estimate, not a count.
+# Published inspection ratings. Not engineering advice.
+metric,value
+county_fips,60010
+county_name,Eastern District
+state,AS
+snapshot_year,2025
+structures,0
+rated,0
+good,0
+fair,0
+poor,0
+unrated,0
+good_percent_of_rated,
+fair_percent_of_rated,
+poor_percent_of_rated,
+median_year_built,
+total_published_adt,
+population_estimate,
+population_margin_of_error,
+population_acs_vintage,
+population_acs_period,
