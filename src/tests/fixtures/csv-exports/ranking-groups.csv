@@ -1,0 +1,14 @@
+# SpanSight ranking (FR-1.4)
+# View: worst-condition
+# Snapshot year: 2025
+# Ranking: Top 2 counties, in Florida
+# Sorted by: Poor share, highest first.
+# Includes: Record type 1 with at least 50 rated structures.
+# Excludes: 3 counties fall below the minimum.
+# Share denominator: Rated structures in the group.
+# Minimum group size: 50 rated structures
+# Set aside by the rules above: 3 groups, 91 structures
+# Published inspection ratings, ordered. Not engineering advice.
+rank,key,label,fips,structures,rated,good,fair,poor,unrated,poor_percent
+1,35013,"Doña Ana County, NM",35013,120,118,40,38,40,2,33.9
+2,Steel|Truss / Arch|South,Steel Truss / Arch — South,,90,88,30,30,28,2,31.8

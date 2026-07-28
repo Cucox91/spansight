@@ -35,3 +35,4 @@ web/playwright-report/
 *.parquet
 /data/
 !src/tests/**/fixtures/
+/test-results/

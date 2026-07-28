@@ -79,6 +79,22 @@ public class SpanSightDbContext(DbContextOptions<SpanSightDbContext> options) : 
             entity.HasIndex(b => b.MaterialCode);
             entity.HasIndex(b => b.DesignCode);
             entity.HasIndex(b => b.Adt);
+
+            // FR-1.4: the rankings group every record-type-1 row by state, by county, or by the
+            // published 43A/43B codes, and read only the condition class off it. Covering all five
+            // makes each of those an index-only scan — measured 40 ms for 623k rows against 74 ms
+            // on a parallel sequential scan, with zero heap fetches, which is what keeps the shape
+            // inside NFR-1 on a single-vCPU B1ms where there are no parallel workers to help.
+            entity.HasIndex(b => b.RecordType)
+                .HasDatabaseName("ix_bridge_ranking")
+                .IncludeProperties(b => new
+                {
+                    b.StateCode,
+                    b.CountyCode,
+                    b.DesignCode,
+                    b.MaterialCode,
+                    b.ConditionClass,
+                });
         });
 
         modelBuilder.Entity<QuarantineRow>(entity =>

@@ -4,12 +4,14 @@ import type {
   BridgeHistory,
   BridgeSummary,
   ConditionComponent,
+  CountyReportCard,
   DeteriorationCatalog,
   DeteriorationMatrix,
   Lookups,
   NlQueryResponse,
   PagedResponse,
   QaSummary,
+  Ranking,
   StatsSummary,
   TrendSeries,
 } from './types'
@@ -144,4 +146,29 @@ export async function askTheMap(text: string): Promise<NlQueryResponse> {
     throw new Error(detail)
   }
   return (await response.json()) as NlQueryResponse
+}
+
+/** FR-1.4 AC-1 — a ranking with its definition. Params are passed straight through. */
+export function fetchRanking(query: URLSearchParams, signal?: AbortSignal): Promise<Ranking> {
+  return getJson(`/api/rankings?${query}`, signal)
+}
+
+/**
+ * FR-1.4 AC-2 — one county's report card. Returns null on 404 so a mistyped FIPS renders an empty
+ * state rather than the page's error branch (the same shape the bridge detail fetch uses).
+ */
+export async function fetchCountyReportCard(
+  fips: string,
+  signal?: AbortSignal,
+): Promise<CountyReportCard | null> {
+  const response = await fetch(`${BASE}/api/counties/${encodeURIComponent(fips)}`, { signal })
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    throw new Error(`GET /api/counties/${fips} failed: ${response.status}`)
+  }
+
+  return (await response.json()) as CountyReportCard
 }

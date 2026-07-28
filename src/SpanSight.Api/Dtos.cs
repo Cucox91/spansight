@@ -419,3 +419,120 @@ public sealed record NlQueryResponseDto(
         result.Interpretation,
         result.Applied.Unsupported ?? []);
 }
+
+// ============================================================================================
+// FR-1.4 — rankings and county report cards.
+//
+// Everything here counts NBI record type 1: the structure itself. The serving table also holds
+// the route records published *under* a structure — 117,781 of the 741,131 rows on the 2025
+// snapshot, none of which carries a condition rating — so a count taken without that filter
+// over-states "bridges" by nearly a fifth and fills the unrated bucket with rows that were never
+// eligible to be rated. It is also the population FR-1.2 and FR-1.3 use, which is what lets a
+// report card's counts and its trend series describe the same structures.
+// ============================================================================================
+
+/// <summary>
+/// What a ranking is, and what it is not — served with the rows so a view cannot render the list
+/// without it (FR-1.4 AC-1: "the sort/inclusion definition displayed alongside the results").
+/// <para>
+/// <see cref="ExcludedGroups"/> and <see cref="ExcludedStructures"/> are the load-bearing pair.
+/// A ranking is an ordering, so a group whose share cannot be published has no position in it and
+/// is left out entirely — but leaving it out silently would let a reader believe the list is
+/// exhaustive. The counts say how much was set aside and why (GR-6).
+/// </para>
+/// </summary>
+public sealed record RankingDefinitionDto(
+    string Headline,
+    string SortedBy,
+    string Includes,
+    string Excludes,
+    string? Denominator,
+    int? MinimumGroupSize,
+    int ExcludedGroups,
+    long ExcludedStructures,
+    string Note);
+
+/// <summary>One ranked group: a state, a county, or a structure-type × material × climate cohort.</summary>
+public sealed record RankingGroupDto(
+    int Rank,
+    string Key,
+    string Label,
+    string? Fips,
+    int Structures,
+    int Rated,
+    int Good,
+    int Fair,
+    int Poor,
+    int Unrated,
+    double PoorPercent);
+
+/// <summary>
+/// One ranked structure. Published values only — item 29 for traffic, items 58/59/60/62 decoded to
+/// Good/Fair/Poor by the same classifier the map uses. Nothing here is a score.
+/// </summary>
+public sealed record RankingStructureDto(
+    int Rank,
+    string State,
+    string StateFips,
+    string StructureNumber,
+    string? CountyFips,
+    string? CountyName,
+    int Adt,
+    string ConditionClass,
+    int? LowestRating,
+    int? YearBuilt,
+    string? FacilityCarried,
+    string? FeaturesIntersected);
+
+public sealed record RankingDto(
+    string View,
+    string? GroupBy,
+    int SnapshotYear,
+    string? Scope,
+    RankingDefinitionDto Definition,
+    IReadOnlyList<RankingGroupDto> Groups,
+    IReadOnlyList<RankingStructureDto> Structures,
+    string CsvUrl);
+
+/// <summary>
+/// The ACS population figure with everything needed to read it honestly: it is a survey estimate,
+/// not a count, and both the vintage and the published margin of error travel with it
+/// (FR-1.5 AC-3). All fields are nullable together — 13 county-equivalents have a TIGER boundary
+/// and no ACS row at all, and that absence must never render as a zero.
+/// </summary>
+public sealed record CountyPopulationDto(
+    long? Estimate,
+    long? MarginOfError,
+    short? AcsVintage,
+    string? AcsPeriod,
+    string? AcsTable,
+    string Citation,
+    string Note);
+
+/// <summary>
+/// FR-1.4 AC-2 — a deep-linkable county report card: counts and condition shares from the current
+/// serving inventory, the FR-1.2 condition history for the same county, and the population served.
+/// </summary>
+public sealed record CountyReportCardDto(
+    string CountyFips,
+    string CountyName,
+    string StateFips,
+    string State,
+    string StateName,
+    int SnapshotYear,
+    int Structures,
+    int Rated,
+    int Good,
+    int Fair,
+    int Poor,
+    int Unrated,
+    double? PoorPercent,
+    double? GoodPercent,
+    double? FairPercent,
+    int? MedianYearBuilt,
+    long? TotalAdt,
+    CountyPopulationDto Population,
+    TrendSeriesDto? Trend,
+    string CountsNote,
+    string MethodNote,
+    string CsvUrl);

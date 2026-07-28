@@ -151,6 +151,8 @@ var apiGroup = app.MapGroup("/api");
 apiGroup.MapBridges();
 apiGroup.MapTrends();
 apiGroup.MapDeterioration();
+apiGroup.MapRankings();
+apiGroup.MapCounties();
 apiGroup.MapStats();
 apiGroup.MapLookups();
 apiGroup.MapQa();

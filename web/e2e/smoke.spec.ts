@@ -91,6 +91,96 @@ test('QA page publishes the county join coverage with its method note (FR-1.5 AC
   await expect(page.getByText(/^Job county-join-/)).toContainText('ST_Within')
 })
 
+test('rankings show the rule that produced them, and export it (FR-1.4 AC-1/AC-3)', async ({
+  page,
+}) => {
+  await page.goto('/rankings?groupBy=county&limit=10')
+
+  const result = page.getByRole('region', { name: /counties by the share/ })
+  await expect(result).toBeVisible({ timeout: 20_000 })
+
+  // AC-1: the definition is *alongside* the results, in the same region — not a tooltip, not a
+  // collapsed panel. All four rules must be in the DOM.
+  await expect(result).toContainText('Sorted by')
+  await expect(result).toContainText('Includes')
+  await expect(result).toContainText('Excludes')
+  await expect(result).toContainText('Share of')
+
+  // GR-6: the note denies what the list is not.
+  await expect(result).toContainText('not a priority list')
+  await expect(result).toContainText('not engineering advice')
+
+  // A share ranking always says how much its minimum set aside, so the list never reads as
+  // exhaustive when it is not.
+  await expect(result).toContainText(/\d+ (counties|county) (fall|falls) below the 50-structure minimum/)
+
+  // AC-3: the export link is server-generated and carries the same parameters.
+  const csv = result.getByRole('link', { name: /Download this ranking as CSV/ })
+  await expect(csv).toHaveAttribute('href', /\/api\/rankings\.csv\?view=worst-condition&groupBy=county/)
+})
+
+test('the structure-level ranking is Poor condition ordered by traffic (FR-1.4 AC-1)', async ({
+  page,
+}) => {
+  await page.goto('/rankings?view=high-adt-poor&limit=5')
+
+  const result = page.getByRole('region', { name: /structures published in Poor condition/ })
+  await expect(result).toBeVisible({ timeout: 20_000 })
+
+  // Data-agnostic: the fixture database may hold no Poor structure with a published traffic count.
+  const rows = result.locator('tbody tr')
+  const count = await rows.count()
+  test.skip(count === 0, 'no Poor structures with a published traffic count in this database')
+
+  await expect(rows.first().locator('[data-rank="1"]').or(rows.first())).toBeVisible()
+  // A structure-level list has no share, so the denominator row must be absent.
+  await expect(result).not.toContainText('Share of')
+  await expect(result).toContainText('publish no traffic count')
+})
+
+test('the county report card deep-links and cites its ACS vintage (FR-1.4 AC-2, FR-1.5 AC-3)', async ({
+  page,
+}) => {
+  await page.goto('/county/12086')
+
+  const card = page.getByRole('region', { name: /Report card for/ })
+  await expect(card).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: /Miami-Dade County, Florida/ })).toBeVisible()
+
+  // FR-1.5 AC-3: the ACS vintage is cited where the figure appears, with the estimate caveat.
+  await expect(card).toContainText('American Community Survey')
+  await expect(card).toContainText('2020-2024')
+  await expect(card).toContainText('not a count')
+
+  // Shares are of rated structures, and an unrated structure is outside the denominator rather
+  // than a zero in it.
+  await expect(card).toContainText('excluded from the share')
+
+  // The URL is the state, so a reload reproduces the page.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /Miami-Dade County/ })).toBeVisible({
+    timeout: 20_000,
+  })
+
+  await expect(card.getByRole('link', { name: /Download as CSV/ })).toHaveAttribute(
+    'href',
+    /\/api\/counties\/12086\.csv/,
+  )
+})
+
+test('a county code neither publisher knows renders an empty state, not an error (FR-1.4 AC-2)', async ({
+  page,
+}) => {
+  await page.goto('/county/12999')
+
+  await expect(page.getByRole('heading', { name: 'County report card' })).toBeVisible({
+    timeout: 20_000,
+  })
+  await expect(page.getByText('No county with FIPS')).toBeVisible()
+  // The empty state offers a way forward rather than a dead end.
+  await expect(page.getByRole('link', { name: /Browse counties by condition/ })).toBeVisible()
+})
+
 test('ask-the-map degrades to the Phase 0.5 notice while Ai:Enabled is false (FR-AI.1)', async ({
   page,
 }) => {
@@ -379,6 +469,22 @@ test.describe('accessibility (NFR-7 — UI chrome, map canvas exempt)', () => {
   test('QA page has no serious/critical violations', async ({ page }) => {
     await page.goto('/qa')
     await expect(page.getByRole('heading', { name: /Data quality/ })).toBeVisible({
+      timeout: 20_000,
+    })
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(severe(results.violations)).toEqual([])
+  })
+
+  test('rankings view has no serious/critical violations (FR-1.4)', async ({ page }) => {
+    await page.goto('/rankings?groupBy=county&limit=10')
+    await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible({ timeout: 20_000 })
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(severe(results.violations)).toEqual([])
+  })
+
+  test('county report card has no serious/critical violations (FR-1.4)', async ({ page }) => {
+    await page.goto('/county/12086')
+    await expect(page.getByRole('region', { name: /Report card for/ })).toBeVisible({
       timeout: 20_000,
     })
     const results = await new AxeBuilder({ page }).analyze()
