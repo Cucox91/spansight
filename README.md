@@ -6,14 +6,27 @@ A national bridge-inventory intelligence platform built on public [FHWA National
 
 **Portfolio project by Raziel Arias** — built to demonstrate senior-level C#/.NET, React/TypeScript, and Azure engineering with a documented, disciplined SDLC. It displays published inventory values only; it is **not engineering advice** and has no affiliation with any Department of Transportation.
 
-## What it does (Phase 0)
+## What it does
+
+### The current snapshot (Phase 0)
 
 - **Ingestion CLI** (.NET 10): parses the annual NBI snapshot, converts DMS-encoded coordinates to WGS84, validates every row (10 machine-readable quarantine reason codes), and upserts idempotently into PostgreSQL/PostGIS — reruns are SHA-256-detected no-ops, run summaries land in `ops.ingestion_run`.
 - **REST API** (ASP.NET Core): filterable bridge queries (state, county, condition, structure type/material, year, bbox), decoded detail records, stats, and a QA summary that reconciles exactly with the ingestion run — with ProblemDetails, rate limiting, health checks, and OpenAPI/Scalar.
 - **Map explorer** (React + MapLibre GL): national condition-colored map, instant filters driven by one shared predicate, deep-linkable bridge drawer (`/bridge/{state}/{id}`), and a Data QA page.
 - **Static vector tiles** ([ADR-002](docs/ARCHITECTURE.md)): `tools/build-tiles.sh` exports `core` → GeoJSONSeq → tippecanoe → a single PMTiles artifact plus a manifest tied to the ingestion run that produced it. No tile server.
 
-Later phases add historical analytics (Parquet + DuckDB), GTFS-Realtime live operations over Miami-Dade Transit, and an AI assist series — see the [roadmap](docs/REQUIREMENTS.md).
+### Thirty-four years of it (Phase 1)
+
+Every NBI vintage from 1992 to 2025 — **22,307,363 published rows** — converted to Parquet and reconciled vintage by vintage, then reduced offline with DuckDB into the compact aggregates the site serves ([ADR-005](docs/ARCHITECTURE.md)). The 50 million individual transitions stay in Parquet; about 235 MB reaches the serving database.
+
+- **Condition trends** (FR-1.2): a Good/Fair/Poor series per structure across all 34 vintages — 1,039,109 structures, 20,649,259 observations — as a sparkline in the drawer and a deep-linkable `/trends` view per state or county. A year FHWA did not publish is a gap, and stays a gap.
+- **Deterioration patterns** (FR-1.3): 10×10 rating-transition matrices by structure type × material × NOAA climate region, over 19.5 million structure pairs. Every rate is suppressed below **n ≥ 50** — counts and year-spans are still served, so suppression removes the rate and never the evidence — and every matrix carries its method note, methodology version and cadence caveat from the API, so no view can render one bare. The method is written down: [docs/METHODOLOGY-DETERIORATION.md](docs/METHODOLOGY-DETERIORATION.md).
+- **Rankings and county report cards** (FR-1.4): worst-condition by state, county or cohort, and high-traffic structures in Poor condition, each **serving its own definition** — headline, sort rule, inclusion rule, exclusion rule, share denominator — rendered inside the same region as the rows. Every view exports server-generated CSV carrying that definition as leading comment lines, so the copy that leaves the building cannot be read without the rule that produced it.
+- **The Census join** (FR-1.5): TIGER county boundaries and ACS population, point-in-polygon against every served structure — **741,076 of 741,131 matched (99.99%)**, all 55 misses quarantined with a reason and the metres to the nearest county. Published as a coverage block on the QA page, and kept as a cross-check rather than an override: the report card is still keyed on the county code NBI itself publishes.
+
+Nothing here predicts, scores, weights or prioritises anything. Every number is a descriptive statistic of published federal inspection ratings ([GR-6](docs/REQUIREMENTS.md)).
+
+Later phases add GTFS-Realtime live operations over Miami-Dade Transit and an AI assist series — see the [roadmap](docs/REQUIREMENTS.md).
 
 ## Getting started
 
@@ -38,6 +51,8 @@ The docs set ships with the product on purpose — process is part of the portfo
 | [docs/TRACEABILITY.md](docs/TRACEABILITY.md) | Requirements traceability matrix |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | C4 views + ADRs |
 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | WBS, conventions, definition of done |
+| [docs/METHODOLOGY-DETERIORATION.md](docs/METHODOLOGY-DETERIORATION.md) | How the transition matrices are computed, and what they do not mean |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Deploy, data publish and rollback procedures |
 | [docs/AI-USAGE.md](docs/AI-USAGE.md) | The AI policy governing every session |
 
 ## How AI was used
