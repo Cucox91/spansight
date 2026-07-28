@@ -114,10 +114,19 @@ jobs:
       - run: az bicep build --file infra/main.bicep --stdout > /dev/null
 
   e2e:
-    name: E2E smoke + a11y
+    name: E2E smoke + a11y (${{ matrix.mode }})
     runs-on: ubuntu-latest
     # Full stack against the fixture: real PostGIS + migrated schema + loaded rows,
     # the real API, and the dev server the Playwright config starts (FR-0.4 AC-6, NFR-7).
+    #
+    # Two legs, because the SPA has two data paths and until now CI only ran one of them.
+    # `fallback` is the API GeoJSON path; `tiles` is the PMTiles path production actually uses.
+    # Three bugs (PRs #15, #16, #18) reached the live demo through that gap, each of them
+    # structurally invisible to a fallback-only suite — see e2e/tiles.spec.ts and issue #34.
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [fallback, tiles]
     services:
       postgres:
         image: imresamu/postgis:16-3.5
@@ -149,7 +158,10 @@ jobs:
       # FR-1.2: the hand-written trend fixture covers three of those same Miami-Dade structures, so
       # the drawer sparkline and the trends view have real rows to render rather than only their
       # empty states.
+      # The three analytics fixtures are fallback-leg only: tiles.spec.ts touches the map and the
+      # drawer and nothing else, and the tiles leg already pays for a tippecanoe build.
       - name: Load condition-history aggregates (FR-1.2)
+        if: matrix.mode == 'fallback'
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load-trends --file src/tests/fixtures/trends
@@ -157,6 +169,7 @@ jobs:
       # Patterns view renders both sides of the n>=50 sample-size floor and the e2e suite can assert
       # the "insufficient data" branch against a real API rather than a mock.
       - name: Load cohort transition matrices (FR-1.3)
+        if: matrix.mode == 'fallback'
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load-deterioration --file src/tests/fixtures/deterioration-aggregates
@@ -164,6 +177,7 @@ jobs:
       # instead of its "not published yet" branch — a section that only ever renders empty in CI is a
       # section the e2e suite is not testing.
       - name: Load county join coverage (FR-1.5)
+        if: matrix.mode == 'fallback'
         run: >
           dotnet run --project src/SpanSight.Ingestion --configuration Release --
           load-county-join --file src/tests/fixtures/census-join-aggregates
@@ -180,12 +194,59 @@ jobs:
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web
-      - run: npm run e2e
+
+      # --- tiles leg only: build the archive the variant runs against -----------------------
+      #
+      # Built here from the committed fixture through the production script, never committed.
+      # A checked-in .pmtiles would let the tile property schema drift away from
+      # GeoJsonExporter with CI green — which is bug #16 again, one layer down. Building it
+      # also gives tools/build-tiles.sh its first CI coverage. ~10 KB, into gitignored
+      # artifacts/.
+      - name: Install tippecanoe (cached)
+        if: matrix.mode == 'tiles'
+        uses: actions/cache@v4
+        id: tippecanoe-cache
+        with:
+          path: /usr/local/bin/tippecanoe*
+          key: tippecanoe-2.79.0-${{ runner.os }}
+      - name: Build tippecanoe
+        if: matrix.mode == 'tiles' && steps.tippecanoe-cache.outputs.cache-hit != 'true'
+        # Pinned to the version the dev Mac runs, so a tile built in CI is the tile built locally.
+        # Not in the Ubuntu repos; the runtime libs (libsqlite3-0, zlib1g) are in the base image.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libsqlite3-dev zlib1g-dev
+          git clone --depth 1 --branch 2.79.0 https://github.com/felt/tippecanoe /tmp/tippecanoe
+          make -C /tmp/tippecanoe -j"$(nproc)"
+          sudo make -C /tmp/tippecanoe install
+      - name: Build fixture tiles (FR-0.5)
+        if: matrix.mode == 'tiles'
+        run: |
+          tippecanoe --version
+          tools/build-tiles.sh --out-dir artifacts/tiles
+
+      # --- run ------------------------------------------------------------------------------
+      - name: Playwright — GeoJSON fallback path
+        if: matrix.mode == 'fallback'
+        run: npm run e2e
         working-directory: web
+      - name: Playwright — PMTiles path
+        if: matrix.mode == 'tiles'
+        # SPANSIGHT_TILES_DIR both registers the `tiles` project and starts the range-request
+        # server for the archive; without it `--project=tiles` fails with "project not found"
+        # rather than silently running nothing. Playwright's webServer inherits this env, so
+        # Vite sees the VITE_* pair when it starts the dev server.
+        env:
+          SPANSIGHT_TILES_DIR: ${{ github.workspace }}/artifacts/tiles
+          VITE_TILES_URL: http://127.0.0.1:8081/bridges.pmtiles
+          VITE_E2E_MAP_HANDLE: '1'
+        run: npm run e2e -- --project=tiles
+        working-directory: web
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.mode }}
           path: web/test-results/
           retention-days: 7
 

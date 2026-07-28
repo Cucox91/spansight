@@ -23,6 +23,37 @@ test('explorer: KPIs load, filter recomputes, disclaimer always visible', async 
   await expect(bridgesShown).not.toHaveText(before ?? '', { timeout: 20_000 })
 })
 
+/**
+ * The other half of the tiles-mode skeleton assertion (see e2e/tiles.spec.ts, PR #15).
+ *
+ * That file asserts `.skeleton` never appears in tiles mode. On its own that is satisfied by
+ * deleting the element from the app — a tiles-only test cannot tell "never shown" from "does not
+ * exist". This one pins the opposite: on the fallback path the skeleton *does* show while the
+ * GeoJSON is in flight, and *does* clear when it lands. Neither test is worth much without the
+ * other, so they land and stay together.
+ */
+test('the loading skeleton shows while the fallback fetch is in flight, and clears (PR #15)', async ({
+  page,
+}) => {
+  test.skip(Boolean(process.env.PLAYWRIGHT_BASE_URL), 'The deployed SPA runs in tiles mode.')
+
+  let release: () => void = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+
+  await page.route('**/api/bridges/geojson*', async (route) => {
+    await held
+    await route.continue()
+  })
+
+  await page.goto('/')
+  await expect(page.locator('.skeleton')).toBeVisible({ timeout: 20_000 })
+
+  release()
+  await expect(page.locator('.skeleton')).toHaveCount(0, { timeout: 20_000 })
+})
+
 // Local runs hit /api through the dev-server proxy; post-deploy runs pass the Container App
 // origin via PLAYWRIGHT_API_URL because the deployed SPA calls the API cross-origin.
 const API_BASE = process.env.PLAYWRIGHT_API_URL ?? ''
