@@ -48,9 +48,19 @@ const server = createServer((req, res) => {
     return
   }
 
-  // A request target beginning with `//` is protocol-relative, and `new URL('//', base)` throws.
-  // The throw would be synchronous inside this listener, which Node does not catch — it would take
-  // the whole server down mid-suite rather than return a status.
+  // A request target beginning with `//` is a protocol-relative reference, and `new URL` resolves
+  // it by reading the first segment as an authority: `//` throws outright (synchronously, inside
+  // this listener, which Node does not catch — it would take the server down), and
+  // `//anything/bridges.pmtiles` silently discards `anything` and resolves to `/bridges.pmtiles`,
+  // serving a file that was not asked for at that path. Neither is a valid origin-form target for
+  // this server, so both are refused rather than half-handled — a trailing-slash typo in
+  // VITE_TILES_URL should say so, not quietly work.
+  if (req.url.startsWith('//')) {
+    res.writeHead(400, CORS)
+    res.end('bad request target')
+    return
+  }
+
   let pathname
   try {
     pathname = new URL(req.url, 'http://localhost').pathname
