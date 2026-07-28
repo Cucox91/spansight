@@ -57,6 +57,13 @@ public sealed class PostgisApiFixture : IAsyncLifetime
         {
             builder.UseSetting("ConnectionStrings:SpanSight", ConnectionString);
             builder.UseSetting("Otlp:Endpoint", "");
+            // The whole collection shares one client and therefore one rate-limiter partition, and
+            // the production default is 100 requests per 10 seconds. The suite crossed that when
+            // FR-1.4 arrived, and the symptom is every test in the collection failing with 429 at
+            // once — which reads like a broken endpoint, not a limiter. Raised here so the limit is
+            // a deployment concern; that a route is inside the limited group is proved directly by
+            // RankingIntegrationTests, against its own host with a limit of two.
+            builder.UseSetting("RateLimiting:PermitLimit", "10000");
         });
         Client = _factory.CreateClient();
     }
