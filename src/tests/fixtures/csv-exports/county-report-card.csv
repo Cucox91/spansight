@@ -1,0 +1,32 @@
+# SpanSight county report card (FR-1.4)
+# County: Doña Ana County (35013), New Mexico
+# Snapshot year: 2025
+# Counts: Current serving inventory, record type 1.
+# Population: U.S. Census Bureau, 2020-2024 ACS 5-Year Estimates, table B01003.
+# Population caveat: An estimate, not a count.
+# Published inspection ratings. Not engineering advice.
+metric,value
+county_fips,35013
+county_name,Doña Ana County
+state,NM
+snapshot_year,2025
+structures,120
+rated,118
+good,40
+fair,38
+poor,40
+unrated,2
+good_percent_of_rated,33.9
+fair_percent_of_rated,32.2
+poor_percent_of_rated,33.9
+median_year_built,1974
+total_published_adt,4030000
+population_estimate,224266
+population_margin_of_error,
+population_acs_vintage,2024
+population_acs_period,2020-2024
+# Condition history follows — one row per year FHWA published this county
+# Years FHWA did not publish are omitted.
+year,total,good,fair,poor,unrated,good_percent,fair_percent,poor_percent,unrated_percent
+2024,119,41,38,38,2,34.5,31.9,31.9,1.7
+2025,120,40,38,40,2,33.3,31.7,33.3,1.7

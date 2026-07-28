@@ -1,0 +1,12 @@
+# SpanSight ranking (FR-1.4)
+# View: high-adt-poor
+# Snapshot year: 2025
+# Ranking: Top 2 structures, nationally
+# Sorted by: Published traffic, highest first.
+# Includes: Record type 1 in Poor condition with a published traffic count.
+# Excludes: 13 Poor structures publish no traffic count.
+# Set aside by the rules above: 0 groups, 13 structures
+# Published inspection ratings, ordered. Not engineering advice.
+rank,state,structure_number,county_fips,county_name,adt,condition_class,lowest_rating,year_built,facility_carried,features_intersected
+1,FL,860001,12086,Miami-Dade County,120000,Poor,4,1968,"I-95 ""EXPRESS"" LANES",MIAMI RIVER
+2,CT,001234,09003,,850,Poor,,,,
