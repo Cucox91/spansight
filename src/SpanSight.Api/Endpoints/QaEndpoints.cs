@@ -118,7 +118,11 @@ public static class QaEndpoints
             .Select(g => new
             {
                 Reason = g.Key,
-                Structures = g.Count(),
+                Rows = g.Count(),
+                // Record type 1 only — the structures. The other rows are the routes published
+                // under a structure, and calling 55 served rows "structures" over-states the
+                // affected bridges by nearly three to one (19 of the 55 nationally).
+                Structures = g.Count(m => m.RecordType == "1"),
                 // Both null when every miss in the group fell outside the search radius, which is the
                 // honest answer: the job stopped looking rather than measured a distance.
                 Max = g.Max(m => m.NearestDistanceMeters),
@@ -141,9 +145,15 @@ public static class QaEndpoints
                 (x, published) => new { x.Disagreement, x.Containing, Published = published })
             .ToListAsync(cancellationToken);
 
-        var retiredCodeBridges = await db.CountyJoinDisagreements.AsNoTracking()
+        var retired = await db.CountyJoinDisagreements.AsNoTracking()
             .Where(d => d.CountyJoinRunId == run.Id && d.NbiFipsInTiger == false)
-            .SumAsync(d => (long)d.Bridges, cancellationToken);
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Rows = g.Sum(d => (long)d.Bridges),
+                Structures = g.Sum(d => (long)d.Structures),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
         return new CountyJoinCoverageDto(
             run.Bridges,
@@ -161,8 +171,9 @@ public static class QaEndpoints
             run.Counties,
             run.CountiesWithoutPopulation,
             [.. reasons
-                .OrderByDescending(r => r.Structures)
-                .Select(r => new CountyJoinMissReasonDto(r.Reason, r.Structures, Median(r.Distances), r.Max))],
+                .OrderByDescending(r => r.Rows)
+                .Select(r => new CountyJoinMissReasonDto(
+                    r.Reason, r.Rows, r.Structures, Median(r.Distances), r.Max))],
             [.. disagreements.Select(x => new CountyJoinDisagreementDto(
                 x.Disagreement.NbiCountyFips,
                 x.Published.Select(p => p.NameLsad).FirstOrDefault(),
@@ -170,8 +181,10 @@ public static class QaEndpoints
                 x.Containing,
                 x.Disagreement.Kind,
                 x.Disagreement.Bridges,
+                x.Disagreement.Structures,
                 x.Disagreement.NbiFipsInTiger))],
-            retiredCodeBridges,
+            retired?.Rows ?? 0,
+            retired?.Structures ?? 0,
             CountyJoinMethodNote,
             new CountyJoinProvenanceDto(
                 run.JobRunId, run.CatalogSha256, run.MethodVersion,

@@ -57,11 +57,12 @@ historic counties (`09001`–`09015`). Boundaries and population agree with each
 they are the same vintage.
 
 The W5 join measured what NBI does about it: **nothing**. Item 3 publishes the eight legacy county
-codes in *every* vintage through 2025 — not just the older half of the series — so all 5,644
-Connecticut structures in the 2025 snapshot carry a code the current boundary file does not contain,
-and all nine planning regions carry zero NBI-coded bridges. That is 8 of the 8 codes absent and
-every one of the state's structures affected, measured 2026-07-27 and published by
-`cj_diagnostic_retired_codes`.
+codes in *every* vintage through 2025 — not just the older half of the series — so every Connecticut
+row in the 2025 snapshot carries a code the current boundary file does not contain: **5,644 served
+rows, of which 4,362 are record-type-1 structures**. All nine planning regions carry zero NBI-coded
+bridges. That is 8 of the 8 codes absent and every one of the state's structures affected, measured
+2026-07-27 and published by `cj_diagnostic_retired_codes`, which reports both counts because they
+differ by 1,282 rows that are routes under a structure rather than bridges.
 
 It is therefore not a gap that closes as the series moves forward, and it is not evidence that a
 coordinate is wrong: the coordinate is fine and lands in the right planning region, while the
@@ -174,8 +175,8 @@ Run of 2026-07-27 against the 2025 snapshot (741,131 served rows, 3,235 counties
 | Relation | Rows | What it is |
 |---|---|---|
 | `county.csv` | 3,235 | Every TIGER county with its ACS population — including the 27 carrying no NBI-coded bridge, so a report card for an empty county can name it |
-| `miss.csv` | 55 | Every structure inside no polygon, with a reason, the nearest county and the distance to it |
-| `disagreement.csv` | 4,022 | Each (published code → containing polygon) pair that disagrees, with how many structures take it |
+| `miss.csv` | 55 | Every served row inside no polygon (19 of them record-type-1 structures), with a reason, the nearest county and the distance to it |
+| `disagreement.csv` | 4,022 | Each (published code → containing polygon) pair that disagrees, with the served rows and the structures taking it |
 
 **Coverage: 741,076 of 741,131 matched — 99.9926%.** Restricted to record type 1 (the structure
 itself, which is what "bridge" means in FR-1.2 and FR-1.3): 623,331 of 623,350, or **99.9970%**.
@@ -213,8 +214,15 @@ figure was measured under is never separated from the figure.
 **Misses are quarantined with evidence, not just a reason.** TIGER boundaries stop at the
 international border and at the shoreline, and NBI structures legitimately sit on both, so each miss
 records the nearest county and the metres to it. That is what separates a metre of shoreline slop
-from a coordinate in the wrong ocean — both are otherwise just "unmatched". The 2026-07-27 spread:
-13 under 100 m, 3 between 100 m and 1 km, 10 between 1 and 10 km, 27 over 10 km, and 2 on a boundary.
+from a coordinate in the wrong ocean — both are otherwise just "unmatched". The 2026-07-27 spread
+over the 55 unmatched served rows: 13 under 100 m, 3 between 100 m and 1 km, 10 between 1 and 10 km,
+27 over 10 km, and 2 on a boundary.
+
+Every count in this section is a **served-row** count unless it says "structures". The serving table
+holds the routes NBI publishes *under* a structure as their own records, and they are 19% of it — so
+`cj_disagreement` and `cj_diagnostic_retired_codes` each publish both numbers, and the QA page labels
+its columns accordingly. A row count under the word "structures" is wrong by a fifth, which is how
+"5,644 Connecticut structures" would have shipped as a figure that is really 4,362.
 
 ### How the SQL is kept honest
 
@@ -233,5 +241,9 @@ which would otherwise satisfy every check in the file.
 
 `CountyJoinGoldenTests` executes this same SQL over 16 hand-placed points covering all five outcomes
 and both miss reasons, asserts each invariant returns nothing, and then mutates a relation per
-invariant to prove each one *can* fail. The fixture and its expected numbers are documented in
+invariant to prove each one *can* fail. Two of the eight originally could not: `cj_check_miss_reason`
+compared a miss's reason against the very column that reason was derived from, and
+`cj_check_disagreement_resolves` asked a `count(*)` whether it was positive. Both now recompute
+independently — the first from the polygons, the second against `cj_coverage` — which is the
+det_check_span lesson applied twice more. The fixture and its expected numbers are documented in
 [`src/tests/fixtures/census-join/README.md`](../../src/tests/fixtures/census-join/README.md).

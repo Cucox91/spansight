@@ -139,6 +139,7 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
             run.Misses = manifest.Misses;
             run.Disagreements = manifest.Disagreements;
             run.DisagreementBridges = manifest.DisagreementBridges;
+            run.DisagreementStructures = manifest.DisagreementStructures;
             run.Status = CountyJoinRunStatus.Running;
 
             if (existing is null)
@@ -370,15 +371,25 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
         var batch = new List<CountyJoinDisagreement>(BatchSize);
         var total = 0;
 
-        await foreach (var fields in ReadCsvAsync(path, expected: 5, cancellationToken))
+        await foreach (var fields in ReadCsvAsync(path, expected: 6, cancellationToken))
         {
             var kind = fields[2];
             var bridges = int.Parse(fields[3], CultureInfo.InvariantCulture);
+            var structures = int.Parse(fields[4], CultureInfo.InvariantCulture);
 
             if (kind is not ("different_county_same_state" or "different_state" or "county_not_published"))
             {
                 throw new InvalidOperationException(
                     $"Disagreement '{fields[0]}'→'{fields[1]}' in {Path.GetFileName(path)}: unknown kind '{kind}'.");
+            }
+
+            if (structures > bridges || structures < 0)
+            {
+                // Record type 1 is a subset of the served rows on this path, so a structure count
+                // above the row count means the two were computed over different populations.
+                throw new InvalidOperationException(
+                    $"Disagreement '{fields[0]}'→'{fields[1]}' in {Path.GetFileName(path)}: " +
+                    $"{structures} structures out of {bridges} served rows.");
             }
 
             if (bridges <= 0)
@@ -395,7 +406,8 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
                 CountyFips = fields[1],
                 Kind = kind,
                 Bridges = bridges,
-                NbiFipsInTiger = ParseNullableBool(fields[4]),
+                Structures = structures,
+                NbiFipsInTiger = ParseNullableBool(fields[5]),
                 CountyJoinRunId = run?.Id ?? 0,
             });
             total++;
@@ -481,6 +493,7 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
         AddArray(command, "county_fips", NpgsqlDbType.Text, batch.Select(d => (object)d.CountyFips));
         AddArray(command, "kinds", NpgsqlDbType.Text, batch.Select(d => (object)d.Kind));
         AddArray(command, "bridges", NpgsqlDbType.Integer, batch.Select(d => (object)d.Bridges));
+        AddArray(command, "structures", NpgsqlDbType.Integer, batch.Select(d => (object)d.Structures));
         AddArray(command, "in_tiger", NpgsqlDbType.Boolean, batch.Select(d => d.NbiFipsInTiger as object ?? DBNull.Value));
         AddArray(command, "run_ids", NpgsqlDbType.Bigint, batch.Select(d => (object)d.CountyJoinRunId));
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -583,13 +596,14 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
 
     private const string DisagreementUpsertSql = """
         INSERT INTO analytics.county_join_disagreement (
-            nbi_county_fips, county_fips, kind, bridges, nbi_fips_in_tiger, county_join_run_id)
-        SELECT u.nbi_fips, u.county_fips, u.kind, u.bridges, u.in_tiger, u.run_id
-        FROM unnest(@nbi_fips, @county_fips, @kinds, @bridges, @in_tiger, @run_ids)
-        AS u(nbi_fips, county_fips, kind, bridges, in_tiger, run_id)
+            nbi_county_fips, county_fips, kind, bridges, structures, nbi_fips_in_tiger, county_join_run_id)
+        SELECT u.nbi_fips, u.county_fips, u.kind, u.bridges, u.structures, u.in_tiger, u.run_id
+        FROM unnest(@nbi_fips, @county_fips, @kinds, @bridges, @structures, @in_tiger, @run_ids)
+        AS u(nbi_fips, county_fips, kind, bridges, structures, in_tiger, run_id)
         ON CONFLICT (nbi_county_fips, county_fips) DO UPDATE SET
             kind = EXCLUDED.kind,
             bridges = EXCLUDED.bridges,
+            structures = EXCLUDED.structures,
             nbi_fips_in_tiger = EXCLUDED.nbi_fips_in_tiger,
             county_join_run_id = EXCLUDED.county_join_run_id;
         """;
@@ -613,5 +627,6 @@ public sealed class CountyJoinLoadPipeline(SpanSightDbContext db, ILogger<County
         int CountiesWithoutPopulation,
         int Misses,
         int Disagreements,
-        long DisagreementBridges);
+        long DisagreementBridges,
+        long DisagreementStructures);
 }

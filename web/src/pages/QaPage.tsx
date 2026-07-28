@@ -156,12 +156,14 @@ function CountyJoinSection({ coverage }: { coverage: CountyJoinCoverage | null }
       <div role="region" aria-label="Join misses by reason" tabIndex={0} className="qa-table-wrap">
         <table className="qa-table">
           <caption>
-            Every bridge that matched no county polygon, quarantined with its reason and how far it
-            fell from the nearest one.
+            Every served row that matched no county polygon, quarantined with its reason and how far
+            it fell from the nearest one. Structures are the record-type-1 subset — the rest are the
+            routes published <em>under</em> a structure.
           </caption>
           <thead>
             <tr>
               <th scope="col">Reason</th>
+              <th scope="col">Served rows</th>
               <th scope="col">Structures</th>
               <th scope="col">Median distance</th>
               <th scope="col">Furthest</th>
@@ -171,6 +173,7 @@ function CountyJoinSection({ coverage }: { coverage: CountyJoinCoverage | null }
             {coverage.missesByReason.map((row) => (
               <tr key={row.reason} data-reason={row.reason}>
                 <th scope="row">{MISS_REASON[row.reason] ?? row.reason}</th>
+                <td>{row.rows.toLocaleString()}</td>
                 <td>{row.structures.toLocaleString()}</td>
                 <td>{formatMetres(row.medianDistanceMeters)}</td>
                 <td>{formatMetres(row.maxDistanceMeters)}</td>
@@ -197,6 +200,7 @@ function CountyJoinSection({ coverage }: { coverage: CountyJoinCoverage | null }
               <th scope="col">Published (item 3)</th>
               <th scope="col">Contains the coordinate</th>
               <th scope="col">Kind</th>
+              <th scope="col">Served rows</th>
               <th scope="col">Structures</th>
             </tr>
           </thead>
@@ -211,16 +215,18 @@ function CountyJoinSection({ coverage }: { coverage: CountyJoinCoverage | null }
                 </th>
                 <td>{row.countyName}</td>
                 <td>{DISAGREEMENT_KIND[row.kind] ?? row.kind}</td>
-                <td>{row.bridges.toLocaleString()}</td>
+                <td>{row.rows.toLocaleString()}</td>
+                <td>{row.structures.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {coverage.bridgesUnderRetiredCodes > 0 && (
+      {coverage.rowsUnderRetiredCodes > 0 && (
         <p className="qa-meta">
-          {coverage.bridgesUnderRetiredCodes.toLocaleString()} structures carry a county code the
+          {coverage.structuresUnderRetiredCodes.toLocaleString()} structures (
+          {coverage.rowsUnderRetiredCodes.toLocaleString()} served rows) carry a county code the
           current boundary file no longer publishes. Those disagree because the published code names
           a county that no longer exists, not because the coordinate is wrong — Connecticut is the
           whole of it, where item 3 still carries the eight legacy counties the Census replaced with

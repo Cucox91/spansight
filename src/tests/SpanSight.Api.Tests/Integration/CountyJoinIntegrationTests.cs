@@ -85,6 +85,12 @@ public class CountyJoinIntegrationTests(PostgisApiFixture fixture)
 
         Assert.Equal(6, coverage.GetProperty("counties").GetInt32());
         Assert.Equal(1, coverage.GetProperty("countiesWithoutPopulation").GetInt32());
+
+        // The retired-code headline is published against both denominators. Publishing only the row
+        // count under the word "structures" over-stated Connecticut by 1,282 bridges that do not
+        // exist — 5,644 served rows against 4,362 structures.
+        Assert.Equal(1, coverage.GetProperty("rowsUnderRetiredCodes").GetInt64());
+        Assert.Equal(1, coverage.GetProperty("structuresUnderRetiredCodes").GetInt64());
     }
 
     /// <summary>
@@ -126,15 +132,20 @@ public class CountyJoinIntegrationTests(PostgisApiFixture fixture)
         var coverage = await CoverageAsync();
         var reasons = coverage.GetProperty("missesByReason").EnumerateArray().ToList();
 
+        // Rows, not structures, is what `unmatched` counts — the same noun discipline the coverage
+        // block uses. Nationally these differ nearly three to one (55 rows, 19 structures), so the
+        // two fields are asserted separately rather than trusted to agree.
         Assert.Equal(
             coverage.GetProperty("unmatched").GetInt64(),
-            reasons.Sum(r => (long)r.GetProperty("structures").GetInt32()));
+            reasons.Sum(r => (long)r.GetProperty("rows").GetInt32()));
 
         var boundary = reasons.Single(r => r.GetProperty("reason").GetString() == "on_county_boundary");
+        Assert.Equal(1, boundary.GetProperty("rows").GetInt32());
         Assert.Equal(1, boundary.GetProperty("structures").GetInt32());
         Assert.Equal(0, boundary.GetProperty("maxDistanceMeters").GetInt64());
 
         var outside = reasons.Single(r => r.GetProperty("reason").GetString() == "outside_all_county_polygons");
+        Assert.Equal(2, outside.GetProperty("rows").GetInt32());
         Assert.Equal(2, outside.GetProperty("structures").GetInt32());
         // One of the two had no county inside the search radius, so the median of the measured
         // distances comes from the one that did — 9,543 m — rather than from an invented value.
@@ -155,6 +166,10 @@ public class CountyJoinIntegrationTests(PostgisApiFixture fixture)
 
         var retired = pairs.Single(p => p.GetProperty("nbiCountyFips").GetString() == "48389");
         Assert.False(retired.GetProperty("nbiFipsInTiger").GetBoolean());
+        // Both denominators reach the payload. They are equal in this fixture and are not
+        // nationally, which is exactly why each is asserted rather than one standing for both.
+        Assert.Equal(1, retired.GetProperty("rows").GetInt32());
+        Assert.Equal(1, retired.GetProperty("structures").GetInt32());
         // The published side names a county the boundary file does not carry, so there is no Census
         // name for it — reported as absent rather than swallowing the row.
         Assert.Equal(JsonValueKind.Null, retired.GetProperty("nbiCountyName").ValueKind);
@@ -235,37 +250,164 @@ public class CountyJoinIntegrationTests(PostgisApiFixture fixture)
     /// The join writes nothing outside <c>analytics</c>. The county a bridge is reported in stays the
     /// county item 3 published, so a job whose entire output is a measurement of disagreement must
     /// not have edited the thing it measured (GR-6).
+    /// <para>
+    /// Asserted by snapshotting every published county code, running the loader again, and comparing
+    /// the whole set. A shape assertion — "no code is longer than three characters" — passes for any
+    /// three-character value regardless of what wrote it, and would not notice the join swapping
+    /// Connecticut's legacy codes for planning-region ones, which is the exact override it guards.
+    /// </para>
     /// </summary>
     [DockerFact]
     public async Task The_join_leaves_the_published_county_code_untouched()
     {
         await using var db = fixture.NewDbContext();
 
-        var seeded = fixture.SeedSummary.RowsLoaded;
-        Assert.Equal(seeded, await db.Bridges.CountAsync());
+        var before = await db.Bridges.AsNoTracking()
+            .OrderBy(b => b.Id)
+            .Select(b => new { b.StateCode, b.StructureNumber, b.RecordType, b.CountyCode })
+            .ToListAsync();
 
-        // Every bridge still carries the county code ingestion loaded, and none carries a 5-digit
-        // FIPS — which is what a join that "corrected" core would have written.
-        Assert.Equal(0, await db.Bridges.CountAsync(b => b.CountyCode != null && b.CountyCode.Length > 3));
+        Assert.Equal(fixture.SeedSummary.RowsLoaded, before.Count);
+
+        await fixture.LoadCountyJoinAsync(force: true);
+
+        await using var after = fixture.NewDbContext();
+        var reloaded = await after.Bridges.AsNoTracking()
+            .OrderBy(b => b.Id)
+            .Select(b => new { b.StateCode, b.StructureNumber, b.RecordType, b.CountyCode })
+            .ToListAsync();
+
+        Assert.Equal(before, reloaded);
     }
 
     /// <summary>
-    /// Provenance follows the rows being served, not the newest completed run. The collection fixture
-    /// is shared and mutable, so this is not hypothetical: another test publishing and rolling back a
-    /// different job would otherwise attach that job's coverage figures to these counties.
+    /// Provenance follows the rows being served, not the newest completed run.
+    /// <para>
+    /// Publishing a second job and then re-publishing the first is what makes this assertion able to
+    /// fail. With one run in the database the run stamped on the rows and the newest completed run
+    /// are the same row, and the test passes under either implementation — which is precisely the
+    /// bug FR-1.3 shipped and had to fix, so a test that cannot distinguish them is no guard at all.
+    /// </para>
     /// </summary>
     [DockerFact]
-    public async Task Provenance_follows_the_rows_being_served()
+    public async Task Provenance_follows_the_rows_being_served_not_the_newest_completed_run()
     {
-        await using var db = fixture.NewDbContext();
+        var staging = Path.Combine(Path.GetTempPath(), $"spansight-county-join-second-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(staging);
+        try
+        {
+            var source = Path.Combine(AppContext.BaseDirectory, "fixtures", "census-join-aggregates");
+            foreach (var name in (ReadOnlySpan<string>)["manifest.json", "county.csv", "miss.csv", "disagreement.csv"])
+            {
+                File.Copy(Path.Combine(source, name), Path.Combine(staging, name));
+            }
 
-        var servingRunId = await db.CensusCounties.AsNoTracking()
-            .Select(c => c.CountyJoinRunId).Distinct().SingleAsync();
-        var run = await db.CountyJoinRuns.AsNoTracking().SingleAsync(r => r.Id == servingRunId);
+            var manifestPath = Path.Combine(staging, "manifest.json");
+            await File.WriteAllTextAsync(manifestPath,
+                (await File.ReadAllTextAsync(manifestPath))
+                    .Replace("\"county-join-fixture\"", "\"county-join-fixture-second\""));
 
-        Assert.Equal(CountyJoinRunStatus.Completed, run.Status);
+            // Publish the second job, then republish the first. The second run stays Completed and
+            // is the newest, but its rows were swept away by the convergence delete.
+            var second = await fixture.LoadCountyJoinAsync(force: false, staging);
+            Assert.False(second.Skipped);
 
-        var coverage = await CoverageAsync();
-        Assert.Equal(run.JobRunId, coverage.GetProperty("provenance").GetProperty("jobRunId").GetString());
+            var first = await fixture.LoadCountyJoinAsync(force: true);
+            Assert.False(first.Skipped);
+
+            await using var db = fixture.NewDbContext();
+
+            var newest = await db.CountyJoinRuns.AsNoTracking()
+                .Where(r => r.Status == CountyJoinRunStatus.Completed)
+                .OrderByDescending(r => r.Id)
+                .FirstAsync();
+            Assert.Equal("county-join-fixture-second", newest.JobRunId);
+
+            var serving = await db.CensusCounties.AsNoTracking()
+                .Select(c => c.CountyJoinRunId).Distinct().SingleAsync();
+            Assert.NotEqual(newest.Id, serving);
+
+            // The API must name the run whose rows it just returned, not the newest one.
+            var coverage = await CoverageAsync();
+            Assert.Equal(
+                "county-join-fixture",
+                coverage.GetProperty("provenance").GetProperty("jobRunId").GetString());
+        }
+        finally
+        {
+            Directory.Delete(staging, recursive: true);
+            // Restore the collection's state for every other test in it.
+            await fixture.LoadCountyJoinAsync(force: true);
+        }
+    }
+
+    /// <summary>
+    /// A load that fails partway leaves the serving tables exactly as they were, and says so on the
+    /// run row.
+    /// <para>
+    /// This is the only test that reaches the pipeline's failure path at all. Every negative test in
+    /// the CLI suite passes <c>dryRun: true</c>, where <c>run</c> is null and the
+    /// <c>catch (Exception ex) when (run is not null)</c> filter excludes the handler entirely — so
+    /// the transaction rollback and the Failed-status write had no coverage whatsoever until this.
+    /// </para>
+    /// </summary>
+    [DockerFact]
+    public async Task A_failed_load_rolls_back_and_records_why_without_disturbing_the_served_rows()
+    {
+        var staging = Path.Combine(Path.GetTempPath(), $"spansight-county-join-fail-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(staging);
+        try
+        {
+            var source = Path.Combine(AppContext.BaseDirectory, "fixtures", "census-join-aggregates");
+            foreach (var name in (ReadOnlySpan<string>)["manifest.json", "county.csv", "miss.csv", "disagreement.csv"])
+            {
+                File.Copy(Path.Combine(source, name), Path.Combine(staging, name));
+            }
+
+            var manifestPath = Path.Combine(staging, "manifest.json");
+            await File.WriteAllTextAsync(manifestPath,
+                (await File.ReadAllTextAsync(manifestPath))
+                    .Replace("\"county-join-fixture\"", "\"county-join-fixture-doomed\"")
+                    // Counties reconcile; the disagreement count does not. The failure therefore
+                    // happens *after* two of the three files are already upserted, which is exactly
+                    // the state the transaction exists to undo.
+                    .Replace("\"disagreements\": 3", "\"disagreements\": 99"));
+
+            await using (var probe = fixture.NewDbContext())
+            {
+                var before = await probe.CensusCounties.AsNoTracking()
+                    .Select(c => c.CountyJoinRunId).Distinct().SingleAsync();
+
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => fixture.LoadCountyJoinAsync(force: true, staging));
+
+                await using var after = fixture.NewDbContext();
+
+                // The counties the doomed run upserted were rolled back: every served county still
+                // carries the run id it had before, and the counts are unchanged.
+                Assert.Equal(before, await after.CensusCounties.AsNoTracking()
+                    .Select(c => c.CountyJoinRunId).Distinct().SingleAsync());
+                Assert.Equal(6, await after.CensusCounties.CountAsync());
+                Assert.Equal(3, await after.CountyJoinDisagreements.CountAsync());
+
+                // The run row survives the rollback — it was written before the transaction opened —
+                // and carries the reason, so an operator can see what happened.
+                var failed = await after.CountyJoinRuns.AsNoTracking()
+                    .SingleAsync(r => r.JobRunId == "county-join-fixture-doomed");
+                Assert.Equal(CountyJoinRunStatus.Failed, failed.Status);
+                Assert.Contains("disagreement.csv", failed.Error);
+
+                // And the API still serves the good run, not the failed one.
+                var coverage = await CoverageAsync();
+                Assert.Equal(
+                    "county-join-fixture",
+                    coverage.GetProperty("provenance").GetProperty("jobRunId").GetString());
+            }
+        }
+        finally
+        {
+            Directory.Delete(staging, recursive: true);
+            await fixture.LoadCountyJoinAsync(force: true);
+        }
     }
 }

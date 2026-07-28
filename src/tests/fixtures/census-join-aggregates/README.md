@@ -14,13 +14,19 @@ file. Everything else is exactly what the job wrote.
 |---|---|---|
 | `county.csv` | 6 | The census fixture counties. `60010` has no population, no MOE and no ACS vintage; `48301` is the one row with a published margin of error. |
 | `miss.csv` | 3 | One `on_county_boundary`, two `outside_all_county_polygons` — one of those with a null nearest county, because nothing lay inside the search radius. |
-| `disagreement.csv` | 3 | One pair per non-agreeing kind. The `county_not_published` row has an empty `nbi_county_fips` **and** an empty `nbi_fips_in_tiger`: null, not false, because with no published code the question does not apply. |
+| `disagreement.csv` | 3 | One pair per non-agreeing kind, each carrying both `bridges` (served rows) and `structures` (record type 1). The `county_not_published` row has an empty `nbi_county_fips` **and** an empty `nbi_fips_in_tiger`: null, not false, because with no published code the question does not apply. |
 
 ## Coverage the manifest declares
 
 16 bridges · 13 matched · 3 unmatched · 15 record-type-1 structures · 12 of those matched ·
 10 agree with item 3 · 1 each of `different_county_same_state`, `different_state`,
-`county_not_published` · 6 counties, 1 without a population row.
+`county_not_published` · 6 counties, 1 without a population row · 3 disagreement pairs covering 3
+served rows and 3 structures.
+
+All three disagreeing rows here happen to be record type 1, so `bridges` and `structures` are equal
+throughout this fixture. Nationally they are not — Connecticut's retired codes cover 5,644 served
+rows and 4,362 structures — which is why the integration suite asserts the two fields separately
+rather than trusting them to agree.
 
 The loader re-checks each row count against this manifest and refuses a mismatch, and separately
 refuses a `miss.csv` that does not account for every unmatched bridge — so editing one file here

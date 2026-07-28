@@ -264,6 +264,12 @@ SELECT
   CAST(x.county_fips AS VARCHAR)                      AS county_fips,
   CAST(x.kind AS VARCHAR)                             AS kind,
   CAST(count(*) AS INTEGER)                           AS bridges,
+  -- Both denominators, for the same reason cj_coverage publishes both: `bridges` counts every
+  -- served row on this path and `structures` counts only record type 1, and the two differ by
+  -- nearly a fifth. Connecticut is where it bites — 5,644 served rows carry a retired county code
+  -- but only 4,362 of them are structures, and a sentence that says "5,644 structures" is wrong by
+  -- 1,282 bridges that do not exist.
+  CAST(count(*) FILTER (x.record_type = '1') AS INTEGER) AS structures,
   -- Null, not false, when item 3 published nothing: there is no code, so "is that code still in the
   -- boundary file" is a question that does not apply. Writing false would read as "the published
   -- code is retired" for a row whose whole point is that no code was published.
@@ -402,25 +408,62 @@ WHERE county_fips IS NULL
    OR county_fips !~ '^[0-9]{5}$'
    OR county_fips <> state_fips || substr(county_fips, 3, 3);
 
--- Every miss carries a reason from the published vocabulary, and the two reasons must stay
--- distinguishable: a boundary miss touches a polygon, an outside miss does not.
+-- Every miss carries a reason from the published vocabulary, and the reason must agree with the
+-- geometry it claims to describe.
+--
+-- The touch count is RECOMPUTED here from the polygons, with a LEFT JOIN, rather than read back out
+-- of cj_touching. Written the obvious way — comparing cj_miss.reason against cj_miss.touching_counties
+-- — this check could not fail for any input at all: cj_miss derives the reason FROM that column, and
+-- cj_touching's GROUP BY guarantees the count is at least one, so both branches of the comparison are
+-- total functions of a single value. That is the det_check_span defect FR-1.3 shipped, and it very
+-- nearly shipped again here. Recomputing gives the check a second opinion to disagree with: an
+-- inverted reason mapping, a changed predicate in cj_touching, or a miss the reason vocabulary does
+-- not cover all land in this relation.
 CREATE OR REPLACE VIEW cj_check_miss_reason AS
-SELECT state_code, structure_number, record_type, reason, touching_counties
-FROM cj_miss
-WHERE reason NOT IN ('on_county_boundary', 'outside_all_county_polygons')
-   OR (reason = 'on_county_boundary' AND touching_counties < 1)
-   OR (reason = 'outside_all_county_polygons' AND touching_counties <> 0);
+SELECT
+  m.state_code, m.structure_number, m.record_type, m.reason, m.touching_counties, r.recomputed
+FROM cj_miss m
+LEFT JOIN (
+  SELECT u.state_code, u.structure_number, u.record_type, count(c.county_fips) AS recomputed
+  FROM cj_unmatched u
+  LEFT JOIN cj_county c ON ST_Intersects(u.point, c.geom)
+  GROUP BY 1, 2, 3
+) r ON r.state_code = m.state_code
+   AND r.structure_number = m.structure_number
+   AND r.record_type = m.record_type
+WHERE m.reason NOT IN ('on_county_boundary', 'outside_all_county_polygons')
+   OR r.recomputed IS NULL
+   OR m.touching_counties IS DISTINCT FROM r.recomputed
+   OR (r.recomputed > 0) <> (m.reason = 'on_county_boundary');
 
--- Every disagreement pair names a polygon that exists. The published side may legitimately name a
--- retired county (that is the Connecticut case and nbi_fips_in_tiger records it), but the polygon
--- side came from the boundary file and must always resolve.
+-- The disagreement pairs must account for exactly the non-agreeing rows the coverage row counts,
+-- and every polygon they name must be one the job actually publishes.
+--
+-- Both halves are cross-relation on purpose. Checking `bridges > 0` or `kind IN (…)` inside
+-- cj_disagreement would be reading back the count and the CASE that one GROUP BY had just produced —
+-- unfalsifiable, the same trap cj_check_miss_reason above nearly fell into. Comparing the pair total
+-- against cj_coverage instead catches a grouping that lost or double-counted rows, and resolving
+-- against cj_county_out (the PUBLISHED county relation, not the internal one) catches a pair naming
+-- a county that was filtered out of the artefact the loader will read.
 CREATE OR REPLACE VIEW cj_check_disagreement_resolves AS
-SELECT d.nbi_county_fips, d.county_fips, d.kind, d.bridges
-FROM cj_disagreement d
-LEFT JOIN cj_county c ON c.county_fips = d.county_fips
-WHERE c.county_fips IS NULL
-   OR d.bridges <= 0
-   OR d.kind NOT IN ('different_county_same_state', 'different_state', 'county_not_published');
+SELECT
+  (SELECT coalesce(sum(bridges), 0) FROM cj_disagreement)                 AS in_pairs,
+  v.different_county_same_state + v.different_state + v.county_not_published AS in_coverage,
+  (SELECT count(*) FROM cj_disagreement d
+   LEFT JOIN cj_county_out c ON c.county_fips = d.county_fips
+   WHERE c.county_fips IS NULL)                                          AS unresolvable_polygons,
+  (SELECT count(*) FROM cj_disagreement
+   WHERE bridges <= 0 OR structures > bridges
+      OR kind NOT IN ('different_county_same_state', 'different_state', 'county_not_published')) AS malformed
+FROM cj_coverage v
+WHERE (SELECT coalesce(sum(bridges), 0) FROM cj_disagreement)
+        IS DISTINCT FROM v.different_county_same_state + v.different_state + v.county_not_published
+   OR (SELECT count(*) FROM cj_disagreement d
+       LEFT JOIN cj_county_out c ON c.county_fips = d.county_fips
+       WHERE c.county_fips IS NULL) > 0
+   OR (SELECT count(*) FROM cj_disagreement
+       WHERE bridges <= 0 OR structures > bridges
+          OR kind NOT IN ('different_county_same_state', 'different_state', 'county_not_published')) > 0;
 
 --------------------------------------------------------------------------------------------------
 -- 8. Diagnostics. Published into the manifest so the shape of the gap is recorded at the time it was
@@ -452,8 +495,10 @@ CREATE OR REPLACE VIEW cj_diagnostic_disagreement_by_state AS
 SELECT
   CAST(substr(nbi_county_fips, 1, 2) AS VARCHAR) AS state_fips,
   CAST(sum(bridges) AS INTEGER)                  AS bridges,
+  CAST(sum(structures) AS INTEGER)               AS structures,
   CAST(count(*) AS INTEGER)                      AS pairs,
-  CAST(sum(bridges) FILTER (NOT nbi_fips_in_tiger) AS INTEGER) AS bridges_under_retired_code
+  CAST(sum(bridges) FILTER (NOT nbi_fips_in_tiger) AS INTEGER)    AS bridges_under_retired_code,
+  CAST(sum(structures) FILTER (NOT nbi_fips_in_tiger) AS INTEGER) AS structures_under_retired_code
 FROM cj_disagreement
 WHERE nbi_county_fips IS NOT NULL
 GROUP BY 1
@@ -464,8 +509,9 @@ HAVING sum(bridges) > 0;
 -- inference from a percentage.
 CREATE OR REPLACE VIEW cj_diagnostic_retired_codes AS
 SELECT
-  CAST(b.nbi_county_fips AS VARCHAR) AS nbi_county_fips,
-  CAST(count(*) AS INTEGER)          AS bridges
+  CAST(b.nbi_county_fips AS VARCHAR)                     AS nbi_county_fips,
+  CAST(count(*) AS INTEGER)                              AS bridges,
+  CAST(count(*) FILTER (b.record_type = '1') AS INTEGER) AS structures
 FROM cj_bridge b
 LEFT JOIN cj_county c ON c.county_fips = b.nbi_county_fips
 WHERE b.nbi_county_fips IS NOT NULL

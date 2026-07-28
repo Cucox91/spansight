@@ -176,13 +176,13 @@ public sealed class CountyJoinGoldenTests : IDisposable
     {
         Assert.Equal(
             """
-            |17031|county_not_published|1|null
-            12086|06037|different_state|1|true
-            48389|48301|different_county_same_state|1|false
+            |17031|county_not_published|1|1|null
+            12086|06037|different_state|1|1|true
+            48389|48301|different_county_same_state|1|1|false
             """.ReplaceLineEndings("\n"),
             DuckDb.Run(
                 """
-                SELECT coalesce(nbi_county_fips, ''), county_fips, kind, bridges,
+                SELECT coalesce(nbi_county_fips, ''), county_fips, kind, bridges, structures,
                        coalesce(CAST(nbi_fips_in_tiger AS VARCHAR), 'null')
                 FROM cj_disagreement ORDER BY nbi_county_fips NULLS FIRST, county_fips;
                 """,
@@ -264,16 +264,28 @@ public sealed class CountyJoinGoldenTests : IDisposable
         "CAST(NULL AS BIGINT) AS population_moe, CAST(NULL AS SMALLINT) AS acs_vintage, " +
         "CAST(NULL AS VARCHAR) AS acs_period, CAST(NULL AS VARCHAR) AS acs_table, c.geom AS geom " +
         "FROM county_source c;")]
-    // A boundary reason on a structure that touches nothing.
+    // Blind cj_touching, so every miss is labelled "outside every polygon" — including the one that
+    // demonstrably sits on the Loving County ring. This is the shape a real job bug takes, and the
+    // check only catches it because it recomputes the touch count from the geometry instead of
+    // reading back the column cj_miss derived its own reason from.
     [InlineData("cj_check_miss_reason",
-        "CREATE OR REPLACE VIEW cj_miss AS SELECT u.state_code, u.structure_number, u.record_type, " +
-        "u.nbi_county_fips, 'on_county_boundary' AS reason, 0 AS touching_counties, " +
-        "NULL AS nearest_county_fips, NULL AS nearest_distance_m, u.lon, u.lat FROM cj_unmatched u;")]
-    // A disagreement naming a polygon the county relation does not carry.
+        "CREATE OR REPLACE VIEW cj_touching AS SELECT u.state_code, u.structure_number, u.record_type, " +
+        "CAST(0 AS BIGINT) AS touching_counties, CAST(NULL AS VARCHAR) AS first_touching_county_fips " +
+        "FROM cj_unmatched u WHERE false;")]
+    // Lose one disagreeing structure from the pairs while cj_coverage still counts it. The check is
+    // a cross-relation reconciliation precisely so this is visible; asking cj_disagreement whether
+    // its own count(*) is positive never could have been.
     [InlineData("cj_check_disagreement_resolves",
-        "CREATE OR REPLACE VIEW cj_disagreement AS SELECT x.nbi_county_fips, '99999' AS county_fips, " +
-        "x.kind, CAST(count(*) AS INTEGER) AS bridges, CAST(NULL AS BOOLEAN) AS nbi_fips_in_tiger " +
-        "FROM cj_outcome x WHERE x.kind NOT IN ('agree', 'unmatched') GROUP BY 1, 2, 3;")]
+        "CREATE OR REPLACE VIEW cj_disagreement AS SELECT x.nbi_county_fips, x.county_fips, x.kind, " +
+        "CAST(count(*) AS INTEGER) AS bridges, CAST(count(*) AS INTEGER) AS structures, " +
+        "CAST(NULL AS BOOLEAN) AS nbi_fips_in_tiger FROM cj_outcome x " +
+        "WHERE x.kind = 'different_state' GROUP BY 1, 2, 3;")]
+    // A pair naming a polygon the PUBLISHED county relation does not carry — a county filtered out
+    // of the artefact the loader reads while a disagreement still points at it.
+    [InlineData("cj_check_disagreement_resolves",
+        "CREATE OR REPLACE VIEW cj_county_out AS SELECT county_fips, state_fips, name, name_lsad, " +
+        "land_area_m2, water_area_m2, tiger_vintage, population, population_moe, acs_vintage, " +
+        "acs_period, acs_table FROM cj_county WHERE county_fips <> '17031';")]
     public void Invariant_fires_when_the_property_it_guards_is_broken(string view, string mutation)
     {
         var violations = int.Parse(DuckDb.Run($"{mutation} SELECT count(*) FROM {view};", _init));

@@ -315,6 +315,7 @@ public sealed record QaSummaryDto(
 /// </summary>
 public sealed record CountyJoinMissReasonDto(
     string Reason,
+    int Rows,
     int Structures,
     long? MedianDistanceMeters,
     long? MaxDistanceMeters);
@@ -324,6 +325,11 @@ public sealed record CountyJoinMissReasonDto(
 /// <c>NbiFipsInTiger</c> false is the fact that explains most disagreement — the published code
 /// names a county the boundary file no longer carries. Null when no code was published at all, since
 /// the question does not apply.
+/// <para>
+/// <c>Rows</c> counts every served row taking this path; <c>Structures</c> counts the record-type-1
+/// subset. Both, because they differ by nearly a fifth and a label that says "structures" over the
+/// first number is simply wrong.
+/// </para>
 /// </summary>
 public sealed record CountyJoinDisagreementDto(
     string? NbiCountyFips,
@@ -331,7 +337,8 @@ public sealed record CountyJoinDisagreementDto(
     string CountyFips,
     string CountyName,
     string Kind,
-    int Bridges,
+    int Rows,
+    int Structures,
     bool? NbiFipsInTiger);
 
 public sealed record CountyJoinProvenanceDto(
@@ -368,7 +375,8 @@ public sealed record CountyJoinCoverageDto(
     int CountiesWithoutPopulation,
     IReadOnlyList<CountyJoinMissReasonDto> MissesByReason,
     IReadOnlyList<CountyJoinDisagreementDto> LargestDisagreements,
-    long BridgesUnderRetiredCodes,
+    long RowsUnderRetiredCodes,
+    long StructuresUnderRetiredCodes,
     string MethodNote,
     CountyJoinProvenanceDto Provenance);
 

@@ -22,6 +22,7 @@
   "misses": 3,
   "disagreements": 3,
   "disagreementBridges": 3,
+  "disagreementStructures": 3,
   "missDistance": [
     {
       "bucket": "1 km to 10 km",
@@ -40,24 +41,30 @@
     {
       "state_fips": "12",
       "bridges": 1,
+      "structures": 1,
       "pairs": 1,
-      "bridges_under_retired_code": null
+      "bridges_under_retired_code": null,
+      "structures_under_retired_code": null
     },
     {
       "state_fips": "48",
       "bridges": 1,
+      "structures": 1,
       "pairs": 1,
-      "bridges_under_retired_code": 1
+      "bridges_under_retired_code": 1,
+      "structures_under_retired_code": 1
     }
   ],
   "retiredCodes": [
     {
-      "nbi_county_fips": "15003",
-      "bridges": 1
+      "nbi_county_fips": "48389",
+      "bridges": 1,
+      "structures": 1
     },
     {
-      "nbi_county_fips": "48389",
-      "bridges": 1
+      "nbi_county_fips": "15003",
+      "bridges": 1,
+      "structures": 1
     }
   ],
   "populationAbsent": [

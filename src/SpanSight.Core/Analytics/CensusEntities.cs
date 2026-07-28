@@ -87,6 +87,9 @@ public class CountyJoinRun
 
     public long DisagreementBridges { get; set; }
 
+    /// <summary>Of those, the record-type-1 structures.</summary>
+    public long DisagreementStructures { get; set; }
+
     public CountyJoinRunStatus Status { get; set; }
 
     public string? Error { get; set; }
@@ -229,7 +232,18 @@ public class CountyJoinDisagreement
     /// <summary><c>different_county_same_state</c>, <c>different_state</c> or <c>county_not_published</c>.</summary>
     public required string Kind { get; set; }
 
+    /// <summary>Every served row on this path, all record types.</summary>
     public int Bridges { get; set; }
+
+    /// <summary>
+    /// Of those, the ones that are structures — NBI record type 1. Carried beside
+    /// <see cref="Bridges"/> for the same reason <see cref="CountyJoinRun.Structures"/> is carried
+    /// beside <see cref="CountyJoinRun.Bridges"/>: the two differ by nearly a fifth, and
+    /// Connecticut's retired codes cover 5,644 served rows but only 4,362 structures. A sentence
+    /// that says "structures" while counting the first number is wrong by 1,282 bridges that do
+    /// not exist.
+    /// </summary>
+    public int Structures { get; set; }
 
     /// <summary>
     /// Whether the boundary file still carries the published code. False is the single fact that

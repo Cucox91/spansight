@@ -252,8 +252,8 @@ counties, counties_without_population = q(
     f"SELECT count(*), count(*) FILTER (population IS NULL) "
     f"FROM read_parquet('{out_dir}/county.parquet')").split("|")
 misses = q(f"SELECT count(*) FROM read_parquet('{out_dir}/miss.parquet')")
-disagreements, disagreement_bridges = q(
-    f"SELECT count(*), coalesce(sum(bridges), 0) "
+disagreements, disagreement_bridges, disagreement_structures = q(
+    f"SELECT count(*), coalesce(sum(bridges), 0), coalesce(sum(structures), 0) "
     f"FROM read_parquet('{out_dir}/disagreement.parquet')").split("|")
 
 bridges = int(coverage["bridges"])
@@ -286,6 +286,7 @@ manifest = {
     "misses": int(misses),
     "disagreements": int(disagreements),
     "disagreementBridges": int(disagreement_bridges),
+    "disagreementStructures": int(disagreement_structures),
     "missDistance": miss_distance,
     "disagreementByState": disagreement_by_state,
     "retiredCodes": retired_codes,
@@ -313,8 +314,9 @@ for row in miss_distance:
     print(f"    miss  {row['bucket']:<36} {int(row['misses']):>6,}")
 if retired_codes:
     retired_bridges = sum(int(r["bridges"]) for r in retired_codes)
+    retired_structures = sum(int(r["structures"]) for r in retired_codes)
     print(f"    {len(retired_codes)} published county code(s) are absent from the county source, "
-          f"covering {retired_bridges:,} structures.")
+          f"covering {retired_bridges:,} served rows ({retired_structures:,} record-type-1 structures).")
     print("      Against the national boundary file that means a retired code — those disagree")
     print("      because the code names a county TIGER no longer publishes, not because the")
     print("      coordinate is wrong. Against a fixture it also catches current counties the")

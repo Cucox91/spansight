@@ -500,7 +500,7 @@ tools/census/download.sh && tools/census/convert.sh   # once; TIGER + ACS stagin
 tools/census/join-counties.sh                          # → data/census/join/
 ```
 
-It refuses to write anything unless all eight invariants pass (one assignment per structure;
+It refuses to write anything unless all eight invariants pass (one assignment per served row;
 assigned + quarantined accounting for every input row via a full outer join, so a row lost from both
 sides is a violation too; the coverage row recomputed from the detail relations; the sign-convention
 guard; no over-long county code silently truncated by DuckDB's `lpad`; the county key still
@@ -519,8 +519,10 @@ published, 13 with no ACS population row. About 10 seconds. Cross-check against 
 agree (98.04%), 13,280 another county of the same state, 853 another state, 400 no code published.
 
 Two numbers in that output are worth reading before publishing. **8 published county codes are
-absent from the boundary file, covering 5,644 structures** — all Connecticut, where item 3 still
-carries the eight legacy counties the Census replaced with nine planning regions for 2022. Those
+absent from the boundary file, covering 5,644 served rows — 4,362 of them record-type-1
+structures** — all Connecticut, where item 3 still carries the eight legacy counties the Census
+replaced with nine planning regions for 2022. Both counts are printed because the serving table also
+holds the routes published under a structure, and they are 19% of it. Those
 disagree because the code names a county that no longer exists, not because the coordinate is wrong,
 and the QA page says so. And **2 of the 55 misses are `on_county_boundary`**: structures sitting
 exactly on a county line, which `ST_Within` leaves unassigned rather than picking one of the two

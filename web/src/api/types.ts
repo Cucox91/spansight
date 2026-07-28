@@ -261,6 +261,9 @@ export interface QaSummary {
 
 export interface CountyJoinMissReason {
   reason: string
+  /** Every served row with this reason, all record types. */
+  rows: number
+  /** Of those, the record-type-1 structures. The two differ by nearly three to one. */
   structures: number
   /** Null when every miss in this group fell outside the job's bounded search radius. */
   medianDistanceMeters: number | null
@@ -274,7 +277,10 @@ export interface CountyJoinDisagreement {
   countyFips: string
   countyName: string
   kind: string
-  bridges: number
+  /** Served rows taking this path, all record types. */
+  rows: number
+  /** Of those, the record-type-1 structures. */
+  structures: number
   /** Null when no county code was published at all, since the question does not apply. */
   nbiFipsInTiger: boolean | null
 }
@@ -301,7 +307,8 @@ export interface CountyJoinCoverage {
   countiesWithoutPopulation: number
   missesByReason: CountyJoinMissReason[]
   largestDisagreements: CountyJoinDisagreement[]
-  bridgesUnderRetiredCodes: number
+  rowsUnderRetiredCodes: number
+  structuresUnderRetiredCodes: number
   methodNote: string
   provenance: {
     jobRunId: string
