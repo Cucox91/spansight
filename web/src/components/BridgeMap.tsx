@@ -93,6 +93,14 @@ export default function BridgeMap() {
         map.getCanvas().style.cursor = ''
       })
 
+      // The tiles-mode e2e variant needs the map object to ask what was actually rendered —
+      // queryRenderedFeatures, getPaintProperty, getFilter — and there is no other way to reach
+      // it from Playwright. VITE_E2E_MAP_HANDLE is set only by the CI tiles job; deploy.yml never
+      // sets it, so Vite folds this to a static false and rollup drops the branch entirely.
+      if (import.meta.env.VITE_E2E_MAP_HANDLE === '1') {
+        ;(window as unknown as { __spansightMap?: maplibregl.Map }).__spansightMap = map
+      }
+
       setMapReady(true)
     })
 
