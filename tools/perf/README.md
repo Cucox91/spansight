@@ -6,11 +6,24 @@ the numbers quoted in `docs/TRACEABILITY.md` are produced.
 ```bash
 tools/perf/perf-pass.sh                    # every shape: latency + plans → artifacts/perf/
 tools/perf/perf-pass.sh --only rank-       # just the ranking shapes
-tools/perf/perf-pass.sh --api https://www.spansights.com --n 50    # the live demo, latency only
+# the deployed API — note the API origin, NOT www.spansights.com (see below)
+tools/perf/perf-pass.sh --api "$API_ORIGIN" --n 20
 ```
 
 Requires `dotnet`, `psql`, `curl`, `python3`, and — for plans — `docker` with the local Postgres
 container running. The script starts and stops the API itself.
+
+`--api` measures a deployed API. Two things about it, both learned the hard way:
+
+- **It must be the API origin, not the site.** `https://www.spansights.com/api/lookups` returns
+  HTTP 200 with 488 bytes of `text/html` — the Static Web App rewrites unmatched paths to
+  `index.html`, so a status-code check sails straight past it. The API lives at the Container App
+  hostname (`ca-spansight-api-demo…azurecontainerapps.io`). The script now rejects a `text/html`
+  response rather than timing the CDN.
+- **The limiter is not raised remotely.** The `RateLimiting__PermitLimit` override only applies to
+  a process this script starts. A deployed API runs the production policy — 100 requests per 10 s
+  per IP — so keep `--n` well under that or most of the run will be measuring 429s. The report
+  says so in its own header when `--api` was used.
 
 ## What it measures
 

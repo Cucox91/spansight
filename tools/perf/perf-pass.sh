@@ -81,18 +81,45 @@ API_PID=""
 
 start_api() {
   [ "$API_IS_LOCAL" = "1" ] || return 0
+
+  # Refuse to start on top of something else. Kestrel would fail to bind, the child would exit, and
+  # the readiness poll below would be satisfied by the foreign listener on its first iteration — so
+  # the whole run would silently measure another process, against another database, behind the
+  # production limiter. That is not hypothetical: it happened during development, with a stale API
+  # from an e2e session still bound to 5194 serving a 99-row fixture.
+  if lsof -nP -iTCP:"${API##*:}" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "error: something is already listening on ${API##*:}." >&2
+    echo "  This script must own the API process — auto_explain is loaded when a connection opens," >&2
+    echo "  so an API started before this run would never have it. Stop it and re-run:" >&2
+    echo "    lsof -ti tcp:${API##*:} | xargs kill" >&2
+    exit 1
+  fi
+
   # The limiter is raised for the duration: 200 samples inside a 10 s window is exactly what the
   # production policy exists to refuse, and a 429 is not a latency measurement. Nothing else about
   # the process differs from how it is served.
+  #
+  # The EF logging override is a command-line argument, not an environment variable, and that is
+  # not a style choice: the env provider maps `__` to `:` but leaves a single `_` alone, so
+  # `Logging__LogLevel__Microsoft_EntityFrameworkCore_Database_Command` becomes a config key with
+  # underscores, which matches no logger category. appsettings.Development.json pins that category
+  # at Information, so the first version of this script measured every request with its full SQL
+  # text being formatted and written inside the timed path — 19,476 command log entries in one run.
   RateLimiting__PermitLimit=1000000 \
   Otlp__Endpoint= \
   ASPNETCORE_ENVIRONMENT=Development \
-  Logging__LogLevel__Microsoft_EntityFrameworkCore_Database_Command=Warning \
     dotnet run --project src/SpanSight.Api -c Release --no-build --launch-profile http \
+    -- --Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command=Warning \
     >> "$OUT/api-$STAMP.log" 2>&1 &
   API_PID=$!
 
   for _ in $(seq 1 60); do
+    # kill -0 first: if the child died (a bind failure, a bad connection string), stop rather than
+    # let the poll find someone else's listener.
+    if ! kill -0 "$API_PID" 2>/dev/null; then
+      echo "API process exited during startup; see $OUT/api-$STAMP.log" >&2
+      exit 1
+    fi
     if curl -fsS "$API/readyz" >/dev/null 2>&1; then return 0; fi
     sleep 1
   done
@@ -117,7 +144,13 @@ explain_off() {
 }
 
 cleanup() { stop_api; [ "$EXPLAIN" = "1" ] && explain_off; rm -f "$RESULTS"; }
-trap cleanup EXIT INT TERM
+
+# EXIT and the signals need different handlers. A bash trap handler returns to where it was
+# interrupted, so a single `trap cleanup INT` would kill the API, reset the role, delete the
+# results file — and then carry on measuring into a report built from whatever rows happened to
+# land after the Ctrl-C, exiting 0. The signal handler therefore exits.
+trap cleanup EXIT
+trap 'echo; echo "interrupted — cleaning up" >&2; exit 130' INT TERM
 
 # The role may still carry settings from an interrupted earlier run. Clearing them here is what
 # makes pass 1 trustworthy — otherwise the "uninstrumented" numbers quietly are not.
@@ -154,8 +187,25 @@ while IFS=$'\t' read -r id requirement label path; do
   if [ -n "$ONLY" ]; then case "$id" in "$ONLY"*) ;; *) continue ;; esac; fi
 
   url="$API$path"
-  code="$(curl -s -o /dev/null -w '%{http_code}' "$url")"
-  bytes="$(curl -s -o /dev/null -w '%{size_download}' "$url")"
+  probe="$(curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}' "$url")"
+  code="${probe%% *}"
+  ctype="$(printf '%s' "$probe" | cut -d' ' -f2)"
+  bytes="${probe##* }"
+
+  # A 200 is not proof the API answered. Point --api at the Static Web App host and every /api
+  # path comes back as the SPA shell — 200, text/html, 488 bytes — because staticwebapp.config.json
+  # rewrites unmatched paths to index.html. Checking only the status code times a CDN handing back
+  # HTML and fills the report with numbers that describe nothing.
+  case "$ctype" in
+    text/html*)
+      echo "    !! $id -> 200 but Content-Type is $ctype ($path)"
+      echo "       This is an HTML page, not an API response. If you passed --api, check that it" >&2
+      echo "       names the API origin and not the SPA host." >&2
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$id" "$requirement" "$label" "$path" "HTTP 200 text/html" "-" "-" "-" "-" >> "$RESULTS"
+      continue
+      ;;
+  esac
 
   if [ "$code" != "200" ]; then
     # Loud, and recorded in the report. A shape that stopped returning rows is a finding, not a
@@ -233,8 +283,20 @@ fi
 {
   echo "# NFR-1 performance pass — $STAMP"
   echo
-  echo "Every serving query shape in \`tools/perf/shapes.tsv\`, measured end to end against a"
-  echo "locally served API over the data below. NFR-1 (SRS §6) sets **300 ms p95**."
+  if [ "$API_IS_LOCAL" = "1" ]; then
+    echo "Every serving query shape in \`tools/perf/shapes.tsv\`, measured end to end against a"
+    echo "locally served API over the data below. NFR-1 (SRS §6) sets **300 ms p95**."
+  else
+    echo "Every serving query shape in \`tools/perf/shapes.tsv\`, measured end to end against"
+    echo "\`$API\`. NFR-1 (SRS §6) sets **300 ms p95**."
+    echo
+    echo "> **Read these numbers carefully.** This was a remote run. The row counts below come from"
+    echo "> the *local* database this script could reach, not from whatever the remote API is serving."
+    echo "> The rate limiter was **not** raised — that override only applies to a process this script"
+    echo "> starts — so a remote API on the default policy (100 requests per 10 s per IP) will reject"
+    echo "> most of a 200-sample run, and curl records each rejection as a fast sample. Treat a remote"
+    echo "> p95 as a smoke check, not as NFR-1 evidence, and keep \`--n\` under the permit limit."
+  fi
   echo
   echo "Regenerate with \`tools/perf/perf-pass.sh\`. Plans for every shape: \`$(basename "$PLANS")\`."
   echo
@@ -246,8 +308,9 @@ fi
   echo
   echo "\`$PG_VERSION\` — $PG_SETTINGS"
   echo
-  echo "Dev Mac, warm cache, $SAMPLES samples per shape after $WARMUP warm-up requests, with the"
-  echo "rate limiter raised for the duration. Latency was measured with the database in its normal"
+  echo "Dev Mac, warm cache, $SAMPLES samples per shape after $WARMUP warm-up requests$(
+    [ "$API_IS_LOCAL" = "1" ] && printf ', with the\nrate limiter raised for the duration')."
+  echo "Latency was measured with the database in its normal"
   echo "state; plans were captured in a second pass, because \`auto_explain\` instrumentation shows"
   echo "up in the timings. The demo runs a single-vCPU B1ms with a smaller cache and no parallel"
   echo "workers, so treat these as the floor: the margin against 300 ms is what makes the"
@@ -264,10 +327,19 @@ fi
   echo
   awk -F'\t' '
     $6 ~ /^[0-9.]+$/ { n++; if ($6 + 0 > m) { m = $6 + 0; s = $1 } if ($6 + 0 > 300) breach = breach " " $1 }
+    $5 ~ /^HTTP/ { failed = failed " `" $1 "` (" $5 ")"; f++ }
     END {
-      printf "%d shapes measured. Slowest: `%s` at %s ms p95.\n", n, s, m
-      if (breach == "") print "\nNo shape breaches the 300 ms NFR-1 target."
-      else printf "\n**Over the 300 ms NFR-1 target:**%s\n", breach
+      # A verdict is only ever printed from measurements. A run where every shape 404s, or an
+      # --only filter that matches nothing, used to print "No shape breaches the 300 ms target"
+      # over zero rows — an NFR-1 pass drawn from no evidence at all.
+      if (n == 0) {
+        print "**No shape was measured.** No conclusion about NFR-1 can be drawn from this run."
+      } else {
+        printf "%d shapes measured. Slowest: `%s` at %s ms p95.\n", n, s, m
+        if (breach == "") print "\nNo measured shape breaches the 300 ms NFR-1 target."
+        else printf "\n**Over the 300 ms NFR-1 target:**%s\n", breach
+      }
+      if (f > 0) printf "\n**%d shape(s) did not return 200 and are unmeasured:**%s\n", f, failed
     }' "$RESULTS"
 } > "$REPORT"
 
