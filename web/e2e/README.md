@@ -85,7 +85,8 @@ response open and asserts the skeleton shows and then clears. Neither is worth m
 ## Assertions to keep relative, not absolute
 
 tippecanoe's default drop-rate thins low zooms, and tile buffers repeat a feature across tiles —
-measured on the 111-feature fixture: z0=3, z1=7, z2=22, z3=59, **z4=126**. So: dedupe by
+measured with `tippecanoe-decode` on the archive the committed fixture actually builds (99 loaded
+features): z0=3, z1=7, z2=21, z3=54, **z4=113**. So: dedupe by
 `properties.id`, assert counts relatively (fewer after a filter, not *n* after a filter), and read
 `getSource('bridges').maxzoom` at runtime rather than hardcoding a zoom. `-zg` derives the maxzoom
 from the data, so the pyramid changes when the fixture does.
