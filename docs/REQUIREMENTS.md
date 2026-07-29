@@ -1,6 +1,6 @@
 # SpanSight — National Bridge Asset Intelligence Platform
 
-**Software Requirements Specification** · v1.3 · Author: Raziel Arias · Date: 2026-07-24 (v1.2: 2026-07-18 · v1.1: 2026-07-17) · Status: Baselined (gate 0)
+**Software Requirements Specification** · v1.5 · Author: Raziel Arias · Date: 2026-07-29 (v1.4: 2026-07-26 · v1.3: 2026-07-24 · v1.2: 2026-07-18 · v1.1: 2026-07-17) · Status: Baselined (gate 1)
 
 ---
 
@@ -21,12 +21,12 @@ Requirements follow the process defined in [SDLC.md](./SDLC.md) (rolling-wave el
 | ID stability | IDs are never renumbered or reused; a dropped requirement is marked *Withdrawn* in place |
 | Priority | MoSCoW, judged within the requirement's phase (a Phase-2 *Must* still waits for Phase 2) |
 | Verification | **Test** (automated) · **Demo** (scripted manual walkthrough) · **Inspection** (review of artifact/config) · **Analysis** (measurement/benchmark) |
-| Elaboration | Phases 0, 0.5 (FR-AI.1), and 1 carry full acceptance criteria; Phases 2–3 are scoped stubs, elaborated at the gate that opens them ([SDLC.md §3](./SDLC.md)) |
+| Elaboration | Phases 0, 0.5 (FR-AI.1), 1, and 2 carry full acceptance criteria; Phase 3 is scoped stubs, elaborated at the gate that opens it ([SDLC.md §3](./SDLC.md)) |
 | Traceability | Every FR/NFR appears in [TRACEABILITY.md](./TRACEABILITY.md) mapping to design, implementation, and verification evidence |
 
 ### 1.2 References
 
-[SDLC.md](./SDLC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DESIGN.md](./DESIGN.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) · [TRACEABILITY.md](./TRACEABILITY.md) · [AI-USAGE.md](./AI-USAGE.md) · [HOSTING-ANALYSIS.md](./HOSTING-ANALYSIS.md)
+[SDLC.md](./SDLC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DESIGN.md](./DESIGN.md) · [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) · [TRACEABILITY.md](./TRACEABILITY.md) · [AI-USAGE.md](./AI-USAGE.md) · [HOSTING-ANALYSIS.md](./HOSTING-ANALYSIS.md) · [TEST-PLAN.md](./TEST-PLAN.md) · [METHODOLOGY-DETERIORATION.md](./METHODOLOGY-DETERIORATION.md)
 
 ## 2. Ground Rules — Employer Conflict Avoidance (non-negotiable)
 
@@ -73,7 +73,7 @@ Main success scenarios only; alternate/error flows are captured as acceptance cr
 
 ## 5. Functional Requirements (phased)
 
-Phase 0, 0.5 (FR-AI.1), and Phase 1 requirements are fully elaborated (priority · verification · acceptance criteria). Phases 2–3 are **scoped stubs** — one-line commitments elaborated at the gate that opens each phase (SDLC.md §3); their IDs are stable now.
+Phase 0, 0.5 (FR-AI.1), 1, and 2 requirements are fully elaborated (priority · verification · acceptance criteria). Phase 3 is **scoped stubs** — one-line commitments elaborated at the gate that opens it (SDLC.md §3); IDs are stable now.
 
 ### Phase 0 — Foundation & Map Explorer (MVP)
 
@@ -183,14 +183,51 @@ Boundaries, population served.
 - AC-2 Join coverage (share of bridges matched to a county polygon) is measured and published on the QA page; misses are quarantined with reasons.
 - AC-3 Population-served figures cite the ACS vintage where displayed and stay within the GR-6 descriptive framing.
 
-### Phase 2 — Real-Time & Operations
+### Phase 2 — Real-Time & Operations *(elaborated 2026-07-29 at gate 1, v1.5)*
 
-- **FR-2.1** GTFS-Realtime ingestion service polling Miami-Dade Transit feeds (Swiftly API) into Redis Streams. Node/TypeScript acceptable here (secondary stack) — justify in an ADR.
-- **FR-2.2** Transactional outbox pattern between ingestion store and event consumers; failure modes tested and documented.
-- **FR-2.3** Live map layer: vehicle positions over the bridge condition layer; geofence event when a route crosses a Poor-condition bridge (demo scenario).
-- **FR-2.4** OpenTelemetry traces/metrics/logs end to end (API, ingestion, front end); Grafana dashboard; basic SLOs and alerts.
-- **FR-2.5** Weather overlay: NOAA api.weather.gov alerts for the visible map area (no API key required).
-- **FR-2.6** End-user terms/disclaimer page (footer link) satisfying Swiftly API License §6 (NFR-8); ships with, and gates, the public release of the live map (FR-2.3).
+Standing guardrails for the phase: the live layer describes **published vehicle positions and published bridge conditions — proximity is reported, risk is never scored** (GR-6). Swiftly license obligations bind the whole phase (NFR-8): the API key exists only in user-secrets and GitHub/ACA secrets, never in CI or the repo; no raw GTFS-RT dumps in the public repo (test fixtures are synthetic or minimized-derived); FR-2.6's terms page **gates the public release** of the live map; cached Swiftly-derived data is deletable on demand. Expected spend rises to ~$30–40/mo with the always-on poller (NFR-2 headroom).
+
+**FR-2.1 — GTFS-Realtime ingestion (poller → Redis Streams)** · Must · Verify: Test + Inspection
+Node/TypeScript poller (the declared secondary stack, ADR-007) polls Miami-Dade Transit vehicle positions via the Swiftly API into Redis Streams.
+
+- AC-1 The poller polls the configured feed(s) within a documented request budget that respects the granted key limit (180 req/15 min), decodes GTFS-RT protobuf, normalizes to a stable position schema (vehicle, trip/route, timestamp, lon/lat, bearing), and `XADD`s to a capped stream; malformed entities are quarantined with reason codes, never silently dropped.
+- AC-2 Decoding and normalization are unit-tested against committed **synthetic** fixtures (NFR-8: no raw feed dumps in the repo); CI runs with zero keys and zero spend.
+- AC-3 Resilience tested: feed timeouts and 429s back off with jitter; a killed poller resumes cleanly (the stream persists; no duplicate storm on restart); a sustained supervised run against the live feed is a [RAZIEL] gate item.
+- AC-4 The runtime choice and pins are recorded against ADR-007; the key enters only via user-secrets locally and ACA secrets in cloud (NFR-4).
+
+**FR-2.2 — Transactional outbox (stream → serving store → dispatch)** · Must · Verify: Test
+A .NET consumer group persists events and an outbox row in one transaction; a dispatcher publishes; at-least-once semantics with tested failure modes.
+
+- AC-1 The consumer reads the stream as a consumer group and persists position/geofence events plus their outbox rows atomically (Testcontainers: real PostgreSQL + Redis).
+- AC-2 Documented failure modes are each a passing test: poller crash (stream persists, consumer idles cleanly) · consumer crash (pending entries reclaimed via `XAUTOCLAIM`, nothing lost) · duplicate delivery (idempotent handlers converge) · dispatcher restart (outbox drains exactly the committed events, in order per key).
+- AC-3 Consumer lag and outbox depth are exposed as metrics (feeds FR-2.4).
+
+**FR-2.3 — Live map layer + geofence demo** · Must · Verify: Test + Demo
+Vehicle positions over the bridge-condition layer; a geofence event when a route crosses a Poor-condition bridge (demo scenario).
+
+- AC-1 The SPA renders live positions via SignalR with automatic reconnect and snapshot re-sync after a hub restart (tested); the layer degrades explicitly when the feed is silent (stale-timestamp banner, map stays functional).
+- AC-2 Geofence events are computed server-side from published positions against Poor-condition bridge buffers and described in proximity terms only — the wording is asserted free of risk/priority language (GR-6).
+- AC-3 **Public release is gated by FR-2.6**: until the terms page is live, the layer ships flag-off (dark), same discipline as FR-AI.1.
+- AC-4 The 10-minute demo script gains the live scenario (G-4).
+
+**FR-2.4 — End-to-end observability** · Must · Verify: Demo + Inspection
+OpenTelemetry traces/metrics/logs across front end, API, poller, consumer; dashboards; basic SLOs and alerts.
+
+- AC-1 One W3C trace spans browser → API → DB in App Insights (closes the NFR-6 browser-leg gap deferred since Phase 0).
+- AC-2 Poller and consumer emit traces and the FR-2.1/2.2 metrics (poll latency, stream lag, event counts); a dashboard presents RED + pipeline health (App Insights workbook in cloud; Grafana in local compose).
+- AC-3 SLOs are stated and alert rules deployed by Bicep (demo-down, stream-stalled, budget burn); one alert drill is executed and recorded in the RUNBOOK.
+
+**FR-2.5 — Weather overlay (NOAA)** · Should · Verify: Test + Demo
+NOAA api.weather.gov alerts for the visible map area — no API key required.
+
+- AC-1 Active alerts for the viewport render as an overlay with NOAA attribution; refresh honors the documented polling etiquette; rendering is tested against recorded alert payloads (public-domain data — recording is permitted).
+- AC-2 Zero-alert and API-down states render explicitly; the overlay never blocks the map.
+
+**FR-2.6 — End-user terms page (Swiftly license)** · Must · Verify: Inspection
+Terms/disclaimer page (footer link) satisfying the Swiftly API License; **ships with, and gates, the public release of the live map (FR-2.3)**.
+
+- AC-1 The page mirrors the license's end-user restrictions and liability disclaimers (rev. 2025-09-22 §6), is reviewed by Raziel against the license text, and is linked from the footer on every route.
+- AC-2 A documented retention rule for cached Swiftly-derived data (TTL + deletion procedure in the RUNBOOK) satisfies the termination obligation (§14).
 
 ### Phase 3 — Stretch / Monetization-Ready
 
@@ -242,7 +279,7 @@ Each NFR carries priority and verification method (§1.1); evidence links live i
 | 1–2 | Repo, CI, compose stack, NBI download + schema study |
 | 3–6 | **Phase 0 complete — public demo live** |
 | 6–8 | Phase 0.5 — AI assist (FR-AI.1 first; overlaps Phase 1 start) |
-| 7–12 | Phase 1 (historical analytics) |
+| 7–12 | **Phase 1 (historical analytics) — complete, gate 1 2026-07-29** |
 | 13–18 | Phase 2 (real-time + observability) |
 | 19–22 | Phase 3 picks (choose 1–2 stretch items) |
 | 23–26 | Polish: docs, demo script, load tests, blog write-up |
@@ -282,6 +319,7 @@ Mobile apps · inspection workflow or data entry · load-rating or any engineeri
 | v1.2 | 2026-07-18 | FR-AI.1 acceptance criteria elaborated (AC-1…AC-6) at its build gate per the v1.1 placeholder — schema constrained to the rail predicate, deterministic interpretation, fail-closed guardrails, cost governors, stub-provider test strategy. No new scope; no requirement renumbered. |
 | v1.3 | 2026-07-24 | **Phase 1 slice elaborated at gate 0** per SDLC §3 rolling-wave: FR-1.1–1.5 gain priority, verification method, and acceptance criteria (incl. the GR-6 descriptive-statistics guardrail for FR-1.3 and the NOAA nine-region climate lookup right-sizing the stub's "climate region"). No new scope; no requirement renumbered; Phases 2–3 remain stubs. Status → Baselined at gate 0. |
 | v1.4 | 2026-07-26 | **FR-1.1 AC-3 fixture bound corrected on evidence (P1-W2).** The "≤3 vintages" cap was written when the vintage set was known only from a three-year sample (1992/2010/2025) and one layout per era was assumed. Converting all 34 vintages showed FHWA published **five** distinct column layouts, not three: 2016 adds `CAT10` (135 cols) and 2017–2018 add `CAT23`/`CAT29` (137 cols), and neither is exercised by any of the three sampled years. The cap is therefore restated as **one fixture per distinct published layout** — five today, ~700 KB total, still nowhere near bulk. Rationale: the cap's intent was "keep bulk data out of git" (rule 4), which five 300-row fixtures honour; read literally it would instead have forced CI to leave two real layouts untested. No new scope; no requirement renumbered; no trade required (R-5 unaffected — this narrows risk rather than adding work). |
+| v1.5 | 2026-07-29 | **Phase 2 slice elaborated at gate 1** per SDLC §3 rolling-wave: FR-2.1–2.6 gain priority, verification method, and acceptance criteria, under phase guardrails binding the Swiftly license obligations (NFR-8) and the GR-6 proximity-not-risk framing for the live layer; FR-2.6 explicitly gates FR-2.3's public release; FR-2.3/FR-2.1 upgraded from stub wording to Must with dark-ship discipline. §1.1 elaboration row, §1.2 references (TEST-PLAN, METHODOLOGY), and the §9 roadmap updated. **Housekeeping:** the v1.4 amendment was recorded in this change log without bumping the header version line — the header now reflects the true sequence (P1-W6 audit finding, same class as the RTM's). No new scope; no requirement renumbered; Phase 3 remains stubs. Status → Baselined at gate 1. |
 
 ---
 
